@@ -1,9 +1,12 @@
 package com.example.guideline_mobile
 
 
+// New imports for animation
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -11,10 +14,18 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -22,11 +33,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -34,18 +45,20 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -58,14 +71,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.guideline_mobile.ui.theme.GuideLine_MOBILETheme
-// New imports for animation
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.hoverable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.BufferedReader
+import java.io.IOException
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
 
 
 class MainActivity : ComponentActivity() {
@@ -87,6 +100,7 @@ fun TheMain() {
     val logoDesc: String = stringResource(id = R.string.logo_desc)
     val context = LocalContext.current
     var scannedResult by remember {mutableStateOf<String?>(null)}
+    val coroutineScope = rememberCoroutineScope()
 
     val scanLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -96,6 +110,10 @@ fun TheMain() {
             val scanContent = data?.getStringExtra("SCAN_RESULT")
             scannedResult = scanContent
             Toast.makeText(context, "Scanned: $scanContent", Toast.LENGTH_LONG).show()
+            Log.d("result", scannedResult.toString())
+            coroutineScope.launch {
+                linkReader(scanContent, context)
+            }
         } else {
             Toast.makeText(context, "Scan canceled", Toast.LENGTH_SHORT).show()
         }
@@ -118,7 +136,7 @@ fun TheMain() {
     var showInfoModal by remember { mutableStateOf(false) }
 
     // Define colors for the gradient animation
-    val vibrantPurple = Color(0xFF9C27B0) // Your specified vibrant purple
+    val vibrantPurple = Color(0xFF1A001F ) // Your specified vibrant purple
     val deepPurple = Color(0xFF6A0080) // A deeper purple for animation
     val veryDarkEndColor = Color(0xFF1A001F) // A very dark color for the end of the gradient
     val darkPurple = Color(0xFF38006B) // Another dark purple shade
@@ -131,7 +149,7 @@ fun TheMain() {
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(5000, easing = LinearEasing),
+            animation = tween(3000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "primaryColor"
@@ -184,7 +202,7 @@ fun TheMain() {
             contentScale = ContentScale.FillBounds,
             modifier = Modifier
                 .fillMaxSize()
-                .alpha(0.2f)
+                .alpha(0.1f)
 
         )
 
@@ -196,7 +214,7 @@ fun TheMain() {
                 .align(Alignment.Center)
                 .size(300.dp)
 
-                .offset(y = (-50).dp)
+                .offset(y = (-75).dp)
                 .alpha(alpha)
 
         )
@@ -216,15 +234,15 @@ fun TheMain() {
 
 
         // Animated Scan Schematic Button
-        AnimatedButton(
-            text = "Scan Schematic",
-            onClick = { /*TODO: Implement scan action*/ },
 
 
         Button(
+
             onClick = {
                 val intent = Intent(context, ScanActivity::class.java)
                 scanLauncher.launch(intent)
+
+
 
                 //input the next activity here and pass the JSON
 
@@ -236,10 +254,27 @@ fun TheMain() {
             modifier = Modifier
                 .align(Alignment.Center)
                 .offset(y = 80.dp)
-        )
+
+
+
+        ){
+            Text(
+                text = "Scan Schematic",
+                color = Color.White,
+                fontFamily = FontFamily.Monospace)
+
+
+
+        }
+
+
         AnimatedButton(
             text = "View Web Application",
+
+
             onClick = { /*TODO: Implement scan action*/ },
+
+
             modifier = Modifier
                 .align(Alignment.Center)
                 .offset(y = 130.dp)
@@ -252,6 +287,16 @@ fun TheMain() {
                 .offset(y = 180.dp)
         )
 
+        Text(
+            text = "v0.1.0",
+            color = Color.Gray,
+            fontSize = 12.sp,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 42.dp)
+                .alpha(0.4f)
+        )
+
         // Info Modal Dialog
         if (showInfoModal) {
             InfoModal(onDismiss = { showInfoModal = false })
@@ -260,11 +305,45 @@ fun TheMain() {
 }
 
 
-        ){
-            Text(
-                text = "Scan Schematic",
-                color = Color.White,
-                fontFamily = FontFamily.Monospace
+
+suspend fun linkReader(qrCode: String?, context: Context) {
+    withContext(Dispatchers.IO) {
+        var urlConnection: HttpURLConnection? = null
+        try {
+            val urlString = "https://guideline-jam.vercel.app/$qrCode"
+            val url = URL(urlString)
+            Log.d("url",url.toString())
+            urlConnection = url.openConnection() as HttpURLConnection
+            urlConnection.requestMethod = "GET"
+
+            val responseCode = urlConnection.responseCode
+            Log.d("linkReader", "GET response code: $responseCode")
+
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                val input = BufferedReader(InputStreamReader(urlConnection.inputStream))
+                val response = input.readText()
+                input.close()
+
+                Log.d("response", response)
+
+                // Go back to the main thread to launch activity
+                withContext(Dispatchers.Main) {
+                    val arPage = Intent(context, ARActivityOne::class.java)
+                    arPage.putExtra("jsonData", response)
+                    context.startActivity(arPage)
+                }
+            } else {
+                Log.e("linkReader", "Server responded with code: $responseCode")
+            }
+        } catch (e: IOException) {
+            Log.e("linkReader", "IOException: ${e.message}", e)
+        } finally {
+            urlConnection?.disconnect()
+        }
+    }
+}
+
+
 
 @Composable
 fun AnimatedButton(
@@ -289,7 +368,8 @@ fun AnimatedButton(
 
     Button(
         onClick = onClick,
-        shape = RoundedCornerShape(25.dp),
+        shape = RoundedCornerShape(25),
+
         colors = ButtonDefaults.buttonColors(
             containerColor = Color.DarkGray
         ),
@@ -305,8 +385,8 @@ fun AnimatedButton(
             color = Color.White
         )
     }
-
 }
+
 
 @Composable
 fun InfoModal(onDismiss: () -> Unit) {
@@ -371,6 +451,9 @@ fun InfoModal(onDismiss: () -> Unit) {
         }
     }
 }
+
+
+
 
 @Preview(showBackground = true)
 @Composable
