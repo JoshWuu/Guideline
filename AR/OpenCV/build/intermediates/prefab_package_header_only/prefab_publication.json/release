@@ -1,5 +1,5 @@
 {
-  "installationFolder": "C:\\Users\\thean\\guideline\\AR\\OpenCV\\build\\intermediates\\prefab_package\\release\\prefab",
+  "installationFolder": "C:\\Users\\thean\\Guideline\\AR\\OpenCV\\build\\intermediates\\prefab_package\\release\\prefab",
   "gradlePath": ":OpenCV",
   "packageInfo": {
     "packageName": "OpenCV",
@@ -8,7 +8,7 @@
     "modules": [
       {
         "moduleName": "opencv_jni_shared",
-        "moduleHeaders": "C:\\Users\\thean\\guideline\\AR\\OpenCV\\native\\jni\\include",
+        "moduleHeaders": "C:\\Users\\thean\\Guideline\\AR\\OpenCV\\native\\jni\\include",
         "moduleExportLibraries": [],
         "abis": []
       }
