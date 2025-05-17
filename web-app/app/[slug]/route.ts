@@ -1,14 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { Formatter } from "../lib/prettier";
 import connectDB from "../api/db/connect";
 import { ObjectId } from "mongodb";
 
 export async function GET(
-  req: Request,
-  { params }: { params: { slug: string } }
-) {
-
-  const slug = params.slug;
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+): Promise<NextResponse> {
+  const { slug } = await params;
 
   console.log("[slug]/route.ts GET", slug);
 
