@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 
 export default function Home() {
-  const [QR, setQR] = useState<any>(null);
+  const [QR, setQR] = useState<string>("");
+  const [ID, setID] = useState<string>("");
   const [netFile, setNetFile] = useState<any>(null);
 
   // dummy
@@ -12,8 +13,12 @@ export default function Home() {
     fetchSP();
   });
 
+  // const handleFileChange = (event) => {
+  //   setSelectedFile(event.target.files[0]);
+  // };
+
   const fetchSP = async () => {
-    const res = await fetch("/dummy.sp");
+    const res = await fetch("/dummy.txt");
     const text = await res.text();
     setNetFile(text);
   };
@@ -28,10 +33,13 @@ export default function Home() {
     });
 
     const data = await res.json();
-    console.log(data);
+    console.log("DATA", data);
 
-    // sets and shows qr code
-    setQR(data);
+    // sets and shows variables
+    setQR(data.qr);
+    setID(data.id);
+
+    console.log(QR, ID);
   };
 
   return (
@@ -45,7 +53,7 @@ export default function Home() {
         <div className="w-full flex items-center justify-center">
           <div className="h-full flex mt-[20vh] w-[80%] flex-col text-violet-200 backdrop-blur-sm p-10 rounded-4xl items-center">
             <h1 className="text-5xl tracking-wider">
-              AR-powered real-time circuit assembly app
+              AR-powered real-time circuit assembly
             </h1>
             <div className="w-[50%]">
               <h1 className="text-violet-100 text-xl mt-5 text-center">
@@ -56,15 +64,20 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="w-full flex items-center justify-center mt-10">
+        <div className="w-full flex items-center justify-center mt-10 flex-col">
           <button
             onClick={() => handleUpload(netFile)}
             className="p-5 bg-violet-100/80 w-40 rounded-md cursor-pointer hover:bg-violet-100/75 transition-all duration-200 ease-in-out delay-100"
           >
-            upload json
+            upload netfile
           </button>
 
-          {QR && <div>QR CODE</div>}
+          {QR !== "" && (
+            <div className="mt-10 relative">
+              <img src={QR} alt="qr code" />
+              <button className="absolute top-0 right-0 cursor-pointer"></button>
+            </div>
+          )}
         </div>
       </div>
     </div>
