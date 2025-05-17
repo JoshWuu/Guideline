@@ -1,9 +1,18 @@
 package com.example.guideline_mobile
 
+
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -13,7 +22,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,6 +36,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,7 +44,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -53,6 +65,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.text.font.FontWeight
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,7 +74,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             GuideLine_MOBILETheme {
-                // Make sure to call your main composable here to display it
+
                 TheMain()
             }
         }
@@ -71,6 +85,34 @@ class MainActivity : ComponentActivity() {
 fun TheMain() {
     // Assume R.string.logo_desc is defined in your strings.xml
     val logoDesc: String = stringResource(id = R.string.logo_desc)
+    val context = LocalContext.current
+    var scannedResult by remember {mutableStateOf<String?>(null)}
+
+    val scanLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val data = result.data
+            val scanContent = data?.getStringExtra("SCAN_RESULT")
+            scannedResult = scanContent
+            Toast.makeText(context, "Scanned: $scanContent", Toast.LENGTH_LONG).show()
+        } else {
+            Toast.makeText(context, "Scan canceled", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    var visible by remember { mutableStateOf(false) }
+
+    // Trigger the fade-in when the screen first appears
+    LaunchedEffect(Unit) {
+        visible = true
+    }
+
+    // Alpha value animated from 0f to 1f
+    val alpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing)
+    )
 
     // State for controlling the info modal visibility
     var showInfoModal by remember { mutableStateOf(false) }
@@ -137,29 +179,60 @@ fun TheMain() {
         }
 
         Image(
-            painter = painterResource(id = R.drawable.guidelinelogo), // Assume R.drawable.guidelinelogo exists
+            painter = painterResource(id = R.drawable.threepxtile),
+            contentDescription = logoDesc,
+            contentScale = ContentScale.FillBounds,
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(0.2f)
+
+        )
+
+        Image(
+            painter = painterResource(id = R.drawable.guidelinelogo),
+
             contentDescription = logoDesc,
             modifier = Modifier
                 .align(Alignment.Center)
                 .size(300.dp)
-                .offset(y = (-100).dp)
+
+                .offset(y = (-50).dp)
+                .alpha(alpha)
+
         )
 
         Text(
             text = "GuideLine",
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.ExtraBold,
+
             fontSize = 36.sp, // Increased from default (typically 14.sp) to 36.sp for larger text
             color = Color.White, // White text should contrast well with the new gradient
+
             modifier = Modifier
                 .align(Alignment.Center)
                 .offset(y = 25.dp)
         )
 
+
         // Animated Scan Schematic Button
         AnimatedButton(
             text = "Scan Schematic",
             onClick = { /*TODO: Implement scan action*/ },
+
+
+        Button(
+            onClick = {
+                val intent = Intent(context, ScanActivity::class.java)
+                scanLauncher.launch(intent)
+
+                //input the next activity here and pass the JSON
+
+            },
+
+            shape = RoundedCornerShape(25),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
+
             modifier = Modifier
                 .align(Alignment.Center)
                 .offset(y = 80.dp)
@@ -186,6 +259,12 @@ fun TheMain() {
     }
 }
 
+
+        ){
+            Text(
+                text = "Scan Schematic",
+                color = Color.White,
+                fontFamily = FontFamily.Monospace
 
 @Composable
 fun AnimatedButton(
