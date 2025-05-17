@@ -1,11 +1,7 @@
 package com.example.guideline_mobile
 
 
-import java.io.BufferedReader
-import java.io.IOException
-import java.io.InputStreamReader
-import java.net.HttpURLConnection
-import java.net.URL
+// New imports for animation
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -18,10 +14,18 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -29,11 +33,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -41,40 +45,40 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.guideline_mobile.ui.theme.GuideLine_MOBILETheme
-// New imports for animation
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.hoverable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
-import androidx.compose.foundation.layout.padding
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.text.font.FontWeight
-import androidx.core.content.ContextCompat.startActivity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.BufferedReader
+import java.io.IOException
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
 
 
 class MainActivity : ComponentActivity() {
@@ -96,6 +100,7 @@ fun TheMain() {
     val logoDesc: String = stringResource(id = R.string.logo_desc)
     val context = LocalContext.current
     var scannedResult by remember {mutableStateOf<String?>(null)}
+    val coroutineScope = rememberCoroutineScope()
 
     val scanLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -106,7 +111,9 @@ fun TheMain() {
             scannedResult = scanContent
             Toast.makeText(context, "Scanned: $scanContent", Toast.LENGTH_LONG).show()
             Log.d("result", scannedResult.toString())
-            linkReader(scannedResult,context)
+            coroutineScope.launch {
+                linkReader(scanContent, context)
+            }
         } else {
             Toast.makeText(context, "Scan canceled", Toast.LENGTH_SHORT).show()
         }
@@ -299,47 +306,43 @@ fun TheMain() {
 
 
 
-fun linkReader (qrCode:String?, context: Context): Any {
-    var urlConnection:HttpURLConnection? = null
-    return try {
+suspend fun linkReader(qrCode: String?, context: Context) {
+    withContext(Dispatchers.IO) {
+        var urlConnection: HttpURLConnection? = null
+        try {
+            val urlString = "https://guideline-jam.vercel.app/$qrCode"
+            val url = URL(urlString)
+            Log.d("url",url.toString())
+            urlConnection = url.openConnection() as HttpURLConnection
+            urlConnection.requestMethod = "GET"
 
-        val urlString : String = "https://guideline-jam.vercel.app/$qrCode"
+            val responseCode = urlConnection.responseCode
+            Log.d("linkReader", "GET response code: $responseCode")
 
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                val input = BufferedReader(InputStreamReader(urlConnection.inputStream))
+                val response = input.readText()
+                input.close()
 
-        val url = URL(urlString);
-        urlConnection = url.openConnection() as HttpURLConnection
-        urlConnection.requestMethod = "GET"
-        var responseCode: Int = urlConnection.getResponseCode();
-        println("GET Code:: $responseCode")
-        if (responseCode == HttpURLConnection.HTTP_OK){
-            var input = BufferedReader(InputStreamReader(urlConnection.inputStream))
-            var inputLine: String
-            var response = StringBuffer()
+                Log.d("response", response)
 
-            while ((`input`.readLine().also { inputLine = it }) != null) {
-                response.append(inputLine)
+                // Go back to the main thread to launch activity
+                withContext(Dispatchers.Main) {
+                    val arPage = Intent(context, ARActivityOne::class.java)
+                    arPage.putExtra("jsonData", response)
+                    context.startActivity(arPage)
+                }
+            } else {
+                Log.e("linkReader", "Server responded with code: $responseCode")
             }
-            input.close()
-
-            Log.d("response",response.toString())
-
-            val arPage = Intent(context,ARActivityOne::class.java)
-            arPage.putExtra("jsonData",response.toString())
-             // context.startActivity(arPage)
-
-        } else {
-
+        } catch (e: IOException) {
+            Log.e("linkReader", "IOException: ${e.message}", e)
+        } finally {
+            urlConnection?.disconnect()
         }
-
-
-    } catch (e: IOException){
-        println(("IOException ${e.message}"))
-        e.printStackTrace()
-    }
-    finally{
-        urlConnection?.disconnect()
     }
 }
+
 
 
 @Composable
