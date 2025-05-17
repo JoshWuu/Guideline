@@ -1,9 +1,16 @@
 package com.example.guideline_mobile
 
 
+import java.io.BufferedReader
+import java.io.IOException
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -51,7 +58,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -63,9 +69,12 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
+import androidx.core.content.ContextCompat.startActivity
 
 
 class MainActivity : ComponentActivity() {
@@ -96,6 +105,8 @@ fun TheMain() {
             val scanContent = data?.getStringExtra("SCAN_RESULT")
             scannedResult = scanContent
             Toast.makeText(context, "Scanned: $scanContent", Toast.LENGTH_LONG).show()
+            Log.d("result", scannedResult.toString())
+            linkReader(scannedResult,context)
         } else {
             Toast.makeText(context, "Scan canceled", Toast.LENGTH_SHORT).show()
         }
@@ -118,7 +129,7 @@ fun TheMain() {
     var showInfoModal by remember { mutableStateOf(false) }
 
     // Define colors for the gradient animation
-    val vibrantPurple = Color(0xFF9C27B0) // Your specified vibrant purple
+    val vibrantPurple = Color(0xFF1A001F ) // Your specified vibrant purple
     val deepPurple = Color(0xFF6A0080) // A deeper purple for animation
     val veryDarkEndColor = Color(0xFF1A001F) // A very dark color for the end of the gradient
     val darkPurple = Color(0xFF38006B) // Another dark purple shade
@@ -131,7 +142,7 @@ fun TheMain() {
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(5000, easing = LinearEasing),
+            animation = tween(3000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "primaryColor"
@@ -184,7 +195,7 @@ fun TheMain() {
             contentScale = ContentScale.FillBounds,
             modifier = Modifier
                 .fillMaxSize()
-                .alpha(0.2f)
+                .alpha(0.1f)
 
         )
 
@@ -196,7 +207,7 @@ fun TheMain() {
                 .align(Alignment.Center)
                 .size(300.dp)
 
-                .offset(y = (-50).dp)
+                .offset(y = (-75).dp)
                 .alpha(alpha)
 
         )
@@ -216,15 +227,15 @@ fun TheMain() {
 
 
         // Animated Scan Schematic Button
-        AnimatedButton(
-            text = "Scan Schematic",
-            onClick = { /*TODO: Implement scan action*/ },
 
 
         Button(
+
             onClick = {
                 val intent = Intent(context, ScanActivity::class.java)
                 scanLauncher.launch(intent)
+
+
 
                 //input the next activity here and pass the JSON
 
@@ -236,10 +247,27 @@ fun TheMain() {
             modifier = Modifier
                 .align(Alignment.Center)
                 .offset(y = 80.dp)
-        )
+
+
+
+        ){
+            Text(
+                text = "Scan Schematic",
+                color = Color.White,
+                fontFamily = FontFamily.Monospace)
+
+
+
+        }
+
+
         AnimatedButton(
             text = "View Web Application",
+
+
             onClick = { /*TODO: Implement scan action*/ },
+
+
             modifier = Modifier
                 .align(Alignment.Center)
                 .offset(y = 130.dp)
@@ -252,6 +280,16 @@ fun TheMain() {
                 .offset(y = 180.dp)
         )
 
+        Text(
+            text = "v0.1.0",
+            color = Color.Gray,
+            fontSize = 12.sp,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 42.dp)
+                .alpha(0.4f)
+        )
+
         // Info Modal Dialog
         if (showInfoModal) {
             InfoModal(onDismiss = { showInfoModal = false })
@@ -260,11 +298,49 @@ fun TheMain() {
 }
 
 
-        ){
-            Text(
-                text = "Scan Schematic",
-                color = Color.White,
-                fontFamily = FontFamily.Monospace
+
+fun linkReader (qrCode:String?, context: Context): Any {
+    var urlConnection:HttpURLConnection? = null
+    return try {
+
+        val urlString : String = "https://guideline-jam.vercel.app/$qrCode"
+
+
+        val url = URL(urlString);
+        urlConnection = url.openConnection() as HttpURLConnection
+        urlConnection.requestMethod = "GET"
+        var responseCode: Int = urlConnection.getResponseCode();
+        println("GET Code:: $responseCode")
+        if (responseCode == HttpURLConnection.HTTP_OK){
+            var input = BufferedReader(InputStreamReader(urlConnection.inputStream))
+            var inputLine: String
+            var response = StringBuffer()
+
+            while ((`input`.readLine().also { inputLine = it }) != null) {
+                response.append(inputLine)
+            }
+            input.close()
+
+            Log.d("response",response.toString())
+
+            val arPage = Intent(context,ARActivityOne::class.java)
+            arPage.putExtra("jsonData",response.toString())
+             // context.startActivity(arPage)
+
+        } else {
+
+        }
+
+
+    } catch (e: IOException){
+        println(("IOException ${e.message}"))
+        e.printStackTrace()
+    }
+    finally{
+        urlConnection?.disconnect()
+    }
+}
+
 
 @Composable
 fun AnimatedButton(
@@ -289,7 +365,8 @@ fun AnimatedButton(
 
     Button(
         onClick = onClick,
-        shape = RoundedCornerShape(25.dp),
+        shape = RoundedCornerShape(25),
+
         colors = ButtonDefaults.buttonColors(
             containerColor = Color.DarkGray
         ),
@@ -305,8 +382,8 @@ fun AnimatedButton(
             color = Color.White
         )
     }
-
 }
+
 
 @Composable
 fun InfoModal(onDismiss: () -> Unit) {
@@ -371,6 +448,9 @@ fun InfoModal(onDismiss: () -> Unit) {
         }
     }
 }
+
+
+
 
 @Preview(showBackground = true)
 @Composable
