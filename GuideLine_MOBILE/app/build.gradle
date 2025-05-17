@@ -37,8 +37,8 @@ android {
 }
 
 dependencies {
-
     implementation project(":OpenCV")
+    implementation 'org.opencv:opencv-android:4.11.0'
     implementation libs.androidx.core.ktx
     implementation libs.qr.scanner
     implementation 'com.google.zxing:core:3.4.1'
