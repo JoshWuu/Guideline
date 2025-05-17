@@ -46,6 +46,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.guideline_mobile.ui.theme.GuideLine_MOBILETheme
+// New imports for animation
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.lerp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,9 +75,40 @@ fun TheMain() {
     // State for controlling the info modal visibility
     var showInfoModal by remember { mutableStateOf(false) }
 
-    // Define colors for the gradient
+    // Define colors for the gradient animation
     val vibrantPurple = Color(0xFF9C27B0) // Your specified vibrant purple
+    val deepPurple = Color(0xFF6A0080) // A deeper purple for animation
     val veryDarkEndColor = Color(0xFF1A001F) // A very dark color for the end of the gradient
+    val darkPurple = Color(0xFF38006B) // Another dark purple shade
+
+    // Create infinite transitions for animating gradient colors
+    val infiniteTransition = rememberInfiniteTransition(label = "gradientTransition")
+
+    // First animation - transitions between primary colors
+    val primaryColorAnim by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(5000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "primaryColor"
+    )
+
+    // Second animation - transitions between secondary colors
+    val secondaryColorAnim by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(7000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "secondaryColor"
+    )
+
+    // Convert float animation values to interpolated colors
+    val primaryColorAnimation = lerp(vibrantPurple, deepPurple, primaryColorAnim)
+    val secondaryColorAnimation = lerp(veryDarkEndColor, darkPurple, secondaryColorAnim)
 
     Box(
         modifier = Modifier
@@ -78,8 +116,8 @@ fun TheMain() {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        vibrantPurple,    // Starts with your vibrant purple at the top
-                        veryDarkEndColor  // Transitions to a very dark color at the bottom
+                        primaryColorAnimation,    // Animated top color
+                        secondaryColorAnimation   // Animated bottom color
                     )
                 )
             )
@@ -104,41 +142,91 @@ fun TheMain() {
             modifier = Modifier
                 .align(Alignment.Center)
                 .size(300.dp)
-                .offset(y = (-50).dp)
+                .offset(y = (-100).dp)
         )
 
         Text(
             text = "GuideLine",
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.ExtraBold,
+            fontSize = 36.sp, // Increased from default (typically 14.sp) to 36.sp for larger text
             color = Color.White, // White text should contrast well with the new gradient
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(y = 30.dp)
+                .offset(y = 25.dp)
         )
 
-        Button(
+        // Animated Scan Schematic Button
+        AnimatedButton(
+            text = "Scan Schematic",
             onClick = { /*TODO: Implement scan action*/ },
-            shape = RoundedCornerShape(25.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.DarkGray
-            ),
             modifier = Modifier
                 .align(Alignment.Center)
                 .offset(y = 80.dp)
-        ) {
-            Text(
-                text = "Scan Schematic",
-                fontFamily = FontFamily.Monospace,
-                color = Color.White
-            )
-        }
+        )
+        AnimatedButton(
+            text = "View Web Application",
+            onClick = { /*TODO: Implement scan action*/ },
+            modifier = Modifier
+                .align(Alignment.Center)
+                .offset(y = 130.dp)
+        )
+        AnimatedButton(
+            text = "Project Submission",
+            onClick = { /*TODO: Implement scan action*/ },
+            modifier = Modifier
+                .align(Alignment.Center)
+                .offset(y = 180.dp)
+        )
 
         // Info Modal Dialog
         if (showInfoModal) {
             InfoModal(onDismiss = { showInfoModal = false })
         }
     }
+}
+
+
+@Composable
+fun AnimatedButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // Create an interaction source to detect hover state
+    val interactionSource = remember { MutableInteractionSource() }
+    // Collect hover state
+    val isHovered by interactionSource.collectIsHoveredAsState()
+
+    // Create an animated scale based on hover state
+    val scale by animateFloatAsState(
+        targetValue = if (isHovered) 1.05f else 1f,
+        animationSpec = tween(
+            durationMillis = 300,
+            easing = FastOutSlowInEasing
+        ),
+        label = "buttonScale"
+    )
+
+    Button(
+        onClick = onClick,
+        shape = RoundedCornerShape(25.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.DarkGray
+        ),
+        modifier = modifier
+            .scale(scale) // Apply the animated scale
+            .hoverable(interactionSource) // Make it hoverable
+    ) {
+        Text(
+            text = text,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 12.sp,
+            color = Color.White
+        )
+    }
+
 }
 
 @Composable
