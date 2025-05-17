@@ -52,7 +52,7 @@ export default function Home() {
         </div>
         <div className="w-full flex items-center justify-center">
           <div className="h-full flex mt-[20vh] w-[80%] flex-col text-violet-200 backdrop-blur-sm p-10 rounded-4xl items-center">
-            <h1 className="text-5xl tracking-wider">
+            <h1 className="text-5xl tracking-wider text-center">
               AR-powered real-time circuit assembly
             </h1>
             <div className="w-[50%]">
