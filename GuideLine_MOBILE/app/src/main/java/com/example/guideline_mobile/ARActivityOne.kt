@@ -1,5 +1,7 @@
 package com.example.guideline_mobile
 
+import kotlinx.serialization.json.Json
+
 import android.Manifest
 import android.view.WindowManager
 import android.content.pm.PackageManager
@@ -8,18 +10,31 @@ import android.util.Log
 import android.view.View
 import android.widget.SeekBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import org.opencv.android.CameraBridgeViewBase
 import org.opencv.android.JavaCameraView
 import org.opencv.android.OpenCVLoader
 import org.opencv.core.*
 import org.opencv.imgproc.Imgproc
 
+typealias GridPoint = Pair<Int, Int>
+
+@Serializable
+data class ComponentPlacement(
+    val ref: String,
+    val positions: List<GridPoint>
+)
+
 class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewListener2 {
     private lateinit var cameraView: JavaCameraView
+    private lateinit var placements: List<ComponentPlacement>
 
+    private var inverseTransformMatrix: Mat? = null
     private var pathPoints = listOf<Pair<Int, Int>>()
     private var pathLineColor: Scalar = Scalar(0.0, 165.0, 255.0)
 
@@ -28,8 +43,8 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
     private val NORMALIZED_HEIGHT = 300 // Height for warped perspective
 
     // Constants for breadboard grid
-    private val EXPECTED_ROWS = 30    // Standard half-size breadboard has ~30 rows
-    private val EXPECTED_COLUMNS = 10 // Standard half-size breadboard has ~10 columns per side
+    private val EXPECTED_ROWS = 10    // Standard half-size breadboard has ~30 rows
+    private val EXPECTED_COLUMNS = 30 // Standard half-size breadboard has ~10 columns per side
 
     // Grid line tracking for stability
     private val rowPositions = mutableListOf<Int>()
@@ -57,6 +72,25 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+
+        val jsonData = intent.getStringExtra("jsonData")
+        if (jsonData.isNullOrEmpty()) {
+            Log.e("ARActivityOne", "No JSON data received in intent extras")
+            Toast.makeText(this, "Failed to load component data", Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
+        Log.d("ARActivityOne", "Raw JSON data received (${jsonData.length} chars)")
+
+        // 2) Deserialize the JSON into Kotlin objects
+        placements = try {
+            Json.decodeFromString(jsonData)
+        } catch (e: SerializationException) {
+            Log.e("ARActivityOne", "Error parsing JSON: ${e.localizedMessage}", e)
+            emptyList()
+        }
+        Log.d("ARActivityOne", "Parsed placements count: ${placements.size}")
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
@@ -143,6 +177,10 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
         // Calculate the perspective transform matrix
         val transformMatrix = Imgproc.getPerspectiveTransform(srcMat, dstMat)
 
+        // Store the inverse transformation matrix for mapping points back
+        inverseTransformMatrix?.release()
+        inverseTransformMatrix = Imgproc.getPerspectiveTransform(dstMat, srcMat)
+
         // Apply the perspective transformation
         val warped = Mat()
         Imgproc.warpPerspective(
@@ -158,6 +196,108 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
         dstMat.release()
 
         return warped
+    }
+
+    /**
+     * Transforms a point from the warped view back to the original view
+     */
+    private fun mapPointFromWarpedToOriginal(warpedPoint: Point): Point {
+        if (inverseTransformMatrix == null) {
+            Log.e("BreadboardDetector", "Inverse transform matrix is null")
+            return warpedPoint
+        }
+
+        // Create a MatOfPoint2f with a single point
+        val warpedPointMat = MatOfPoint2f(warpedPoint)
+        val originalPointMat = MatOfPoint2f()
+
+        // Apply the inverse perspective transform
+        Core.perspectiveTransform(warpedPointMat, originalPointMat, inverseTransformMatrix)
+
+        // Extract the transformed point
+        val originalPoint = originalPointMat.toArray()[0]
+
+        // Clean up
+        warpedPointMat.release()
+        originalPointMat.release()
+
+        return originalPoint
+    }
+
+    /**
+     * Draws dots in the original view based on highlighted points in the warped view
+     */
+    private fun drawHighlightedPointsInOriginalView(rgba: Mat) {
+        if (inverseTransformMatrix == null || currentIntersectionMatrix.isEmpty()) {
+            return
+        }
+
+        highlightedPoints.forEach { (row, col) ->
+            try {
+                // Check if the point is within the grid
+                if (row >= 0 && row < currentIntersectionMatrix.size &&
+                    col >= 0 && col < currentIntersectionMatrix[0].size) {
+
+                    // Get the intersection point in warped view
+                    val warpedPoint = currentIntersectionMatrix[row][col]
+
+                    warpedPoint?.let {
+                        // Map the point from warped view to original view
+                        val originalPoint = mapPointFromWarpedToOriginal(it)
+
+                        // Draw a circle at the mapped point in the original view
+                        Imgproc.circle(
+                            rgba,
+                            originalPoint,
+                            8, // Larger radius for better visibility
+                            Scalar(0.0, 255.0, 255.0), // Cyan
+                            -1 // Filled circle
+                        )
+
+                        // Add a border for better visibility
+                        Imgproc.circle(
+                            rgba,
+                            originalPoint,
+                            14,
+                            Scalar(0.0, 0.0, 0.0), // Black border
+                            2
+                        )
+
+                        // Add label with coordinates
+                        val label = "($row,$col)"
+                        val textSize = Imgproc.getTextSize(
+                            label,
+                            Imgproc.FONT_HERSHEY_SIMPLEX,
+                            0.5,
+                            1,
+                            null
+                        )
+
+                        // Create a background for the text
+                        Imgproc.rectangle(
+                            rgba,
+                            Point(originalPoint.x - 2, originalPoint.y - textSize.height - 4),
+                            Point(originalPoint.x + textSize.width + 2, originalPoint.y),
+                            Scalar(0.0, 0.0, 0.0),
+                            -1 // Filled rectangle
+                        )
+
+                        // Draw the text
+                        Imgproc.putText(
+                            rgba,
+                            label,
+                            Point(originalPoint.x, originalPoint.y - 4),
+                            Imgproc.FONT_HERSHEY_SIMPLEX,
+                            0.5,
+                            Scalar(255.0, 255.0, 255.0), // White text
+                            1
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("BreadboardDetector", "Error drawing point in original view: ${e.message}")
+            }
+        }
     }
 
     /**
@@ -1052,9 +1192,7 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
                 }
             }
 
-            clearHighlightedPoints()
-
-// Check if there's a valid grid
+            // Check if there's a valid grid
             if (currentIntersectionMatrix.isNotEmpty() && currentIntersectionMatrix[0].isNotEmpty()) {
                 // Get the dimensions of the grid
                 val lastRowIndex = currentIntersectionMatrix.size - 1
@@ -1062,7 +1200,7 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
 
                 // Create a list with first and last point
                 val pointsToHighlight = listOf(
-                    Pair(0, 0),                      // First point (0,0)
+                    Pair(1, 1),                      // First point (0,0)
                     Pair(lastRowIndex, lastColIndex) // Last point (max row, max col)
                 )
 
@@ -1076,7 +1214,11 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
                 highlightMultipleGridPoints(pointsToHighlight, colors)
 
                 Log.d("BreadboardDetector", "Highlighted first point (0,0) and last point ($lastRowIndex,$lastColIndex)")
+
+                // INTEGRATION: Draw the highlighted points in the original view
+                drawHighlightedPointsInOriginalView(rgba)
             }
+
             // Display debug info in top corner
             displayDebugInfo(rgba, detectedCorners, rowCount, colCount)
 
@@ -1086,6 +1228,10 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
             blurred.release()
             hierarchy.release()
             contours.forEach { it.release() }
+
+            // Don't clear highlighted points here, to keep them visible
+            // This lets the user see the points until they are deliberately cleared elsewhere
+            // clearHighlightedPoints()
 
             return rgba
         } catch (e: Exception) {
