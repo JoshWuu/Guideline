@@ -19,17 +19,7 @@ import org.opencv.imgproc.Imgproc
 
 class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewListener2 {
     private lateinit var cameraView: JavaCameraView
-    private lateinit var sbMinDist: SeekBar
-    private lateinit var sbParam1: SeekBar
-    private lateinit var sbParam2: SeekBar
-    private lateinit var sbMinRadius: SeekBar
-    private lateinit var sbMaxRadius: SeekBar
-    private lateinit var tvMinDist: TextView
-    private lateinit var tvParam1: TextView
-    private lateinit var tvParam2: TextView
-    private lateinit var tvMinRadius: TextView
-    private lateinit var tvMaxRadius: TextView
-    private lateinit var calibrationPanel: View
+
 
     // Constants for normalized breadboard representation
     private val NORMALIZED_WIDTH = 600  // Width for warped perspective
@@ -44,15 +34,7 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
     private val colPositions = mutableListOf<Int>()
     private val HISTORY_SIZE = 5 // Number of frames to use for stabilization
 
-    // HoughCircles parameters with default values
-    private var minDist = 10.0
-    private var param1 = 50.0    // Higher threshold for Canny edge detector
-    private var param2 = 30.0    // Accumulator threshold
-    private var minRadius = 3    // Minimum hole radius
-    private var maxRadius = 10   // Maximum hole radius
 
-    // Flag to show/hide calibration panel
-    private var showCalibration = false
 
     // Matrix to store the perspective transformed result
     private var warpedBreadboard: Mat? = null
@@ -76,26 +58,8 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
 
         // Initialize UI components
         cameraView = findViewById(R.id.java_camera_view)
-        calibrationPanel = findViewById(R.id.calibration_panel)
-        sbMinDist = findViewById(R.id.sb_min_dist)
-        sbParam1 = findViewById(R.id.sb_param1)
-        sbParam2 = findViewById(R.id.sb_param2)
-        sbMinRadius = findViewById(R.id.sb_min_radius)
-        sbMaxRadius = findViewById(R.id.sb_max_radius)
-        tvMinDist = findViewById(R.id.tv_min_dist)
-        tvParam1 = findViewById(R.id.tv_param1)
-        tvParam2 = findViewById(R.id.tv_param2)
-        tvMinRadius = findViewById(R.id.tv_min_radius)
-        tvMaxRadius = findViewById(R.id.tv_max_radius)
 
-        // Setup initial values for seekbars
-        setupSeekBars()
 
-        // Set button click listener for toggling calibration panel
-        findViewById<View>(R.id.btn_calibrate).setOnClickListener {
-            showCalibration = !showCalibration
-            calibrationPanel.visibility = if (showCalibration) View.VISIBLE else View.GONE
-        }
 
         cameraView.setCvCameraViewListener(this)
 
@@ -107,77 +71,6 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
         } else {
             startCamera()
         }
-    }
-
-    private fun setupSeekBars() {
-        // Initial values
-        sbMinDist.progress = minDist.toInt()
-        sbParam1.progress = param1.toInt()
-        sbParam2.progress = param2.toInt()
-        sbMinRadius.progress = minRadius
-        sbMaxRadius.progress = maxRadius
-
-        // Update text views
-        updateParameterDisplay()
-
-        // Set listeners for all seekbars
-        sbMinDist.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                minDist = progress.toDouble().coerceAtLeast(1.0)
-                updateParameterDisplay()
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar) {}
-        })
-
-        sbParam1.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                param1 = progress.toDouble().coerceAtLeast(1.0)
-                updateParameterDisplay()
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar) {}
-        })
-
-        sbParam2.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                param2 = progress.toDouble().coerceAtLeast(1.0)
-                updateParameterDisplay()
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar) {}
-        })
-
-        sbMinRadius.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                minRadius = progress.coerceAtLeast(1)
-                // Ensure minRadius is smaller than maxRadius
-                if (minRadius >= maxRadius) {
-                    maxRadius = minRadius + 1
-                    sbMaxRadius.progress = maxRadius
-                }
-                updateParameterDisplay()
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar) {}
-        })
-
-        sbMaxRadius.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                maxRadius = progress.coerceAtLeast(minRadius + 1)
-                updateParameterDisplay()
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar) {}
-        })
-    }
-
-    private fun updateParameterDisplay() {
-        tvMinDist.text = "Min Distance: ${minDist.toInt()}"
-        tvParam1.text = "Param1 (Canny): ${param1.toInt()}"
-        tvParam2.text = "Param2 (Threshold): ${param2.toInt()}"
-        tvMinRadius.text = "Min Radius: $minRadius"
-        tvMaxRadius.text = "Max Radius: $maxRadius"
     }
 
     private fun startCamera() {
@@ -360,7 +253,7 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
             Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C,
             Imgproc.THRESH_BINARY_INV,
             11,
-            11.0
+            9.0
         )
 
         // Morphological operations
@@ -375,11 +268,11 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
             circles,
             Imgproc.HOUGH_GRADIENT,
             1.0,
-            minDist,
-            param1,
-            param2,
-            minRadius,
-            maxRadius
+            5.0,
+            150.0,
+            50.0,
+            2,
+            25
         )
 
         // Process detected circles
@@ -512,64 +405,6 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
     }
 
     /**
-     * Draw grid lines on the given Mat
-     */
-    private fun drawGridLines(mat: Mat, horizontalLines: List<Line>, verticalLines: List<Line>) {
-        // Draw horizontal lines in blue
-        for (line in horizontalLines) {
-            Imgproc.line(
-                mat,
-                Point(line.x1.toDouble(), line.y1.toDouble()),
-                Point(line.x2.toDouble(), line.y2.toDouble()),
-                Scalar(255.0, 0.0, 0.0),  // Blue color (BGR)
-                1
-            )
-        }
-
-        // Draw vertical lines in green
-        for (line in verticalLines) {
-            Imgproc.line(
-                mat,
-                Point(line.x1.toDouble(), line.y1.toDouble()),
-                Point(line.x2.toDouble(), line.y2.toDouble()),
-                Scalar(0.0, 255.0, 0.0),  // Green color (BGR)
-                1
-            )
-        }
-    }
-
-    /**
-     * Draw detected holes on the given Mat
-     */
-    private fun drawHoles(mat: Mat, holes: List<BreadboardHole>) {
-        for (hole in holes) {
-            // Draw circle outline - red for occupied, green for empty
-            val color = if (hole.isOccupied) {
-                Scalar(0.0, 0.0, 255.0)  // Red for occupied holes
-            } else {
-                Scalar(0.0, 255.0, 0.0)  // Green for empty holes
-            }
-
-            Imgproc.circle(
-                mat,
-                Point(hole.x.toDouble(), hole.y.toDouble()),
-                hole.radius,
-                color,
-                1
-            )
-
-            // Draw circle center point
-            Imgproc.circle(
-                mat,
-                Point(hole.x.toDouble(), hole.y.toDouble()),
-                1,
-                color,
-                1
-            )
-        }
-    }
-
-    /**
      * Enhanced algorithm to detect breadboards with visualization of detected features
      */
     override fun onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame): Mat {
@@ -646,69 +481,6 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
                 warpedBreadboard?.release()
                 warpedBreadboard = applyPerspectiveTransform(rgba, points)
 
-                // Create a small preview of the warped image in the corner
-                if (warpedBreadboard != null) {
-                    // Use the enhanced robust grid detection (HoughLines approach)
-                    val (horizontalLines, verticalLines) = detectBreadboardGridRobust(warpedBreadboard!!)
-
-                    // Use HoughCircles to detect holes and their occupancy
-                    val holes = detectBreadboardHoles(warpedBreadboard!!)
-
-                    // Draw the grid lines and holes on the warped breadboard
-                    val warpedWithOverlays = warpedBreadboard!!.clone()
-                    drawGridLines(warpedWithOverlays, horizontalLines, verticalLines)
-                    drawHoles(warpedWithOverlays, holes)
-
-                    // Create the preview image
-                    val preview = Mat()
-                    val previewSize = Size(rgba.width() * 0.3, rgba.height() * 0.3)
-                    Imgproc.resize(warpedWithOverlays, preview, previewSize)
-
-                    // Create an ROI in the top-right corner of the main image
-                    val roi = rgba.submat(
-                        0,
-                        preview.height().toInt(),
-                        rgba.width() - preview.width().toInt(),
-                        rgba.width()
-                    )
-
-                    // Copy the preview into the ROI
-                    preview.copyTo(roi)
-
-                    // Draw a border around the preview
-                    Imgproc.rectangle(
-                        rgba,
-                        Point(rgba.width().toDouble() - preview.width().toDouble(), 0.0),
-                        Point(rgba.width().toDouble(), preview.height().toDouble()),
-                        Scalar(255.0, 255.0, 255.0),
-                        2
-                    )
-
-                    // Display grid line and hole detection stats
-                    Imgproc.putText(
-                        rgba,
-                        "Grid: ${horizontalLines.size}r x ${verticalLines.size}c",
-                        Point(10.0, rgba.height() - 40.0),
-                        Imgproc.FONT_HERSHEY_SIMPLEX,
-                        0.5,
-                        Scalar(255.0, 255.0, 255.0),
-                        1
-                    )
-
-                    Imgproc.putText(
-                        rgba,
-                        "Holes: ${holes.size} (${holes.count { it.isOccupied }} occupied)",
-                        Point(10.0, rgba.height() - 20.0),
-                        Imgproc.FONT_HERSHEY_SIMPLEX,
-                        0.5,
-                        Scalar(255.0, 255.0, 255.0),
-                        1
-                    )
-
-                    // Clean up
-                    preview.release()
-                    warpedWithOverlays.release()
-                }
             } else {
                 // Fallback: draw rotated rectangle in red if not 4 points
                 val rotatedRect = Imgproc.minAreaRect(contour2f)
@@ -718,6 +490,8 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
                     Imgproc.line(rgba, boxPoints[i], boxPoints[(i + 1) % 4], Scalar(0.0, 0.0, 255.0), 3)
                 }
             }
+
+
 
             // Clean up
             contour2f.release()

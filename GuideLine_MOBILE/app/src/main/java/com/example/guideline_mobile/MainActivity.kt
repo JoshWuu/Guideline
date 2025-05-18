@@ -310,11 +310,20 @@ suspend fun linkReader(qrCode: String?, context: Context) {
     withContext(Dispatchers.IO) {
         var urlConnection: HttpURLConnection? = null
         try {
+            // Make sure the QR code isn't null
+            if (qrCode == null) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Invalid QR code", Toast.LENGTH_SHORT).show()
+                }
+                return@withContext
+            }
+
             val urlString = "https://guideline-jam.vercel.app/$qrCode"
+            Log.d("linkReader", "Requesting URL: $urlString")
             val url = URL(urlString)
-            Log.d("url",url.toString())
             urlConnection = url.openConnection() as HttpURLConnection
             urlConnection.requestMethod = "GET"
+            urlConnection.connectTimeout = 5000 // Add timeout
 
             val responseCode = urlConnection.responseCode
             Log.d("linkReader", "GET response code: $responseCode")
@@ -324,19 +333,42 @@ suspend fun linkReader(qrCode: String?, context: Context) {
                 val response = input.readText()
                 input.close()
 
-                Log.d("response", response)
+                Log.d("linkReader", "Response received: ${response.take(100)}...")  // Log first 100 chars
 
                 // Go back to the main thread to launch activity
                 withContext(Dispatchers.Main) {
-                    val arPage = Intent(context, ARActivityOne::class.java)
-                    arPage.putExtra("jsonData", response)
-                    context.startActivity(arPage)
+                    try {
+                        val arPage = Intent(context, ARActivityOne::class.java)
+                        arPage.putExtra("jsonData", response)
+
+                        // Add flags if starting from a non-activity context
+                        if (context !is Activity) {
+                            arPage.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+
+                        context.startActivity(arPage)
+                        Log.d("linkReader", "Started ARActivityOne")
+                    } catch (e: Exception) {
+                        Log.e("linkReader", "Failed to start ARActivityOne: ${e.message}", e)
+                        Toast.makeText(context, "Error starting AR view: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
                 }
             } else {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Server error: $responseCode", Toast.LENGTH_SHORT).show()
+                }
                 Log.e("linkReader", "Server responded with code: $responseCode")
             }
         } catch (e: IOException) {
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "Network error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
             Log.e("linkReader", "IOException: ${e.message}", e)
+        } catch (e: Exception) {
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+            Log.e("linkReader", "Exception: ${e.message}", e)
         } finally {
             urlConnection?.disconnect()
         }

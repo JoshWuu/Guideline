@@ -8,9 +8,9 @@
     "triple": "aarch64-linux-android",
     "llvmTriple": "aarch64-none-linux-android"
   },
-  "cxxBuildFolder": "C:\\Users\\thean\\guideline\\AR\\OpenCV\\.cxx\\Debug\\6z562g10\\arm64-v8a",
-  "soFolder": "C:\\Users\\thean\\guideline\\AR\\OpenCV\\build\\intermediates\\cxx\\Debug\\6z562g10\\obj\\arm64-v8a",
-  "soRepublishFolder": "C:\\Users\\thean\\guideline\\AR\\OpenCV\\build\\intermediates\\cmake\\debug\\obj\\arm64-v8a",
+  "cxxBuildFolder": "C:\\Users\\thean\\guideline\\GuideLine_MOBILE\\OpenCV\\.cxx\\Debug\\6z562g10\\arm64-v8a",
+  "soFolder": "C:\\Users\\thean\\guideline\\GuideLine_MOBILE\\OpenCV\\build\\intermediates\\cxx\\Debug\\6z562g10\\obj\\arm64-v8a",
+  "soRepublishFolder": "C:\\Users\\thean\\guideline\\GuideLine_MOBILE\\OpenCV\\build\\intermediates\\cmake\\debug\\obj\\arm64-v8a",
   "abiPlatformVersion": 21,
   "cmake": {
     "effectiveConfiguration": {
@@ -37,13 +37,13 @@
     ],
     "cmakeSettingsConfiguration": "android-gradle-plugin-predetermined-name",
     "module": {
-      "cxxFolder": "C:\\Users\\thean\\guideline\\AR\\OpenCV\\.cxx",
-      "intermediatesBaseFolder": "C:\\Users\\thean\\guideline\\AR\\OpenCV\\build\\intermediates",
-      "intermediatesFolder": "C:\\Users\\thean\\guideline\\AR\\OpenCV\\build\\intermediates\\cxx",
+      "cxxFolder": "C:\\Users\\thean\\guideline\\GuideLine_MOBILE\\OpenCV\\.cxx",
+      "intermediatesBaseFolder": "C:\\Users\\thean\\guideline\\GuideLine_MOBILE\\OpenCV\\build\\intermediates",
+      "intermediatesFolder": "C:\\Users\\thean\\guideline\\GuideLine_MOBILE\\OpenCV\\build\\intermediates\\cxx",
       "gradleModulePathName": ":OpenCV",
-      "moduleRootFolder": "C:\\Users\\thean\\guideline\\AR\\OpenCV",
-      "moduleBuildFile": "C:\\Users\\thean\\guideline\\AR\\OpenCV\\build.gradle",
-      "makeFile": "C:\\Users\\thean\\guideline\\AR\\OpenCV\\libcxx_helper\\CMakeLists.txt",
+      "moduleRootFolder": "C:\\Users\\thean\\guideline\\GuideLine_MOBILE\\OpenCV",
+      "moduleBuildFile": "C:\\Users\\thean\\guideline\\GuideLine_MOBILE\\OpenCV\\build.gradle",
+      "makeFile": "C:\\Users\\thean\\guideline\\GuideLine_MOBILE\\OpenCV\\libcxx_helper\\CMakeLists.txt",
       "buildSystem": "CMAKE",
       "ndkFolder": "C:\\Users\\thean\\AppData\\Local\\Android\\Sdk\\ndk\\27.0.12077973",
       "ndkFolderBeforeSymLinking": "C:\\Users\\thean\\AppData\\Local\\Android\\Sdk\\ndk\\27.0.12077973",
@@ -153,7 +153,7 @@
         "SYSTEM": {}
       },
       "project": {
-        "rootBuildGradleFolder": "C:\\Users\\thean\\guideline\\AR",
+        "rootBuildGradleFolder": "C:\\Users\\thean\\guideline\\GuideLine_MOBILE",
         "sdkFolder": "C:\\Users\\thean\\AppData\\Local\\Android\\Sdk",
         "isBuildOnlyTargetAbiEnabled": true,
         "ideBuildTargetAbi": "arm64-v8a,armeabi-v7a,armeabi",
@@ -173,12 +173,12 @@
   "buildSettings": {
     "environmentVariables": []
   },
-  "prefabFolder": "C:\\Users\\thean\\guideline\\AR\\OpenCV\\.cxx\\Debug\\6z562g10\\prefab\\arm64-v8a",
+  "prefabFolder": "C:\\Users\\thean\\guideline\\GuideLine_MOBILE\\OpenCV\\.cxx\\Debug\\6z562g10\\prefab\\arm64-v8a",
   "isActiveAbi": true,
   "fullConfigurationHash": "6z562g105r5j3l70455w572o4t4324503b6b4b4m3g4v2bn4g5j4q5e5v6x5s1g",
   "fullConfigurationHashKey": "# Values used to calculate the hash in this folder name.\n# Should not depend on the absolute path of the project itself.\n#   - AGP: 8.10.0.\n#   - $NDK is the path to NDK 27.0.12077973.\n#   - $PROJECT is the path to the parent folder of the root Gradle build file.\n#   - $ABI is the ABI to be built with. The specific value doesn\u0027t contribute to the value of the hash.\n#   - $HASH is the hash value computed from this text.\n#   - $CMAKE is the path to CMake 3.22.1.\n#   - $NINJA is the path to Ninja.\n-H$PROJECT/OpenCV/libcxx_helper\n-DCMAKE_SYSTEM_NAME\u003dAndroid\n-DCMAKE_EXPORT_COMPILE_COMMANDS\u003dON\n-DCMAKE_SYSTEM_VERSION\u003d21\n-DANDROID_PLATFORM\u003dandroid-21\n-DANDROID_ABI\u003d$ABI\n-DCMAKE_ANDROID_ARCH_ABI\u003d$ABI\n-DANDROID_NDK\u003d$NDK\n-DCMAKE_ANDROID_NDK\u003d$NDK\n-DCMAKE_TOOLCHAIN_FILE\u003d$NDK/build/cmake/android.toolchain.cmake\n-DCMAKE_MAKE_PROGRAM\u003d$NINJA\n-DCMAKE_LIBRARY_OUTPUT_DIRECTORY\u003d$PROJECT/OpenCV/build/intermediates/cxx/Debug/$HASH/obj/$ABI\n-DCMAKE_RUNTIME_OUTPUT_DIRECTORY\u003d$PROJECT/OpenCV/build/intermediates/cxx/Debug/$HASH/obj/$ABI\n-DCMAKE_BUILD_TYPE\u003dDebug\n-B$PROJECT/OpenCV/.cxx/Debug/$HASH/$ABI\n-GNinja\n-DANDROID_STL\u003dc++_shared",
   "configurationArguments": [
-    "-HC:\\Users\\thean\\guideline\\AR\\OpenCV\\libcxx_helper",
+    "-HC:\\Users\\thean\\guideline\\GuideLine_MOBILE\\OpenCV\\libcxx_helper",
     "-DCMAKE_SYSTEM_NAME\u003dAndroid",
     "-DCMAKE_EXPORT_COMPILE_COMMANDS\u003dON",
     "-DCMAKE_SYSTEM_VERSION\u003d21",
@@ -189,13 +189,13 @@
     "-DCMAKE_ANDROID_NDK\u003dC:\\Users\\thean\\AppData\\Local\\Android\\Sdk\\ndk\\27.0.12077973",
     "-DCMAKE_TOOLCHAIN_FILE\u003dC:\\Users\\thean\\AppData\\Local\\Android\\Sdk\\ndk\\27.0.12077973\\build\\cmake\\android.toolchain.cmake",
     "-DCMAKE_MAKE_PROGRAM\u003dC:\\Users\\thean\\AppData\\Local\\Android\\Sdk\\cmake\\3.22.1\\bin\\ninja.exe",
-    "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY\u003dC:\\Users\\thean\\guideline\\AR\\OpenCV\\build\\intermediates\\cxx\\Debug\\6z562g10\\obj\\arm64-v8a",
-    "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY\u003dC:\\Users\\thean\\guideline\\AR\\OpenCV\\build\\intermediates\\cxx\\Debug\\6z562g10\\obj\\arm64-v8a",
+    "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY\u003dC:\\Users\\thean\\guideline\\GuideLine_MOBILE\\OpenCV\\build\\intermediates\\cxx\\Debug\\6z562g10\\obj\\arm64-v8a",
+    "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY\u003dC:\\Users\\thean\\guideline\\GuideLine_MOBILE\\OpenCV\\build\\intermediates\\cxx\\Debug\\6z562g10\\obj\\arm64-v8a",
     "-DCMAKE_BUILD_TYPE\u003dDebug",
-    "-BC:\\Users\\thean\\guideline\\AR\\OpenCV\\.cxx\\Debug\\6z562g10\\arm64-v8a",
+    "-BC:\\Users\\thean\\guideline\\GuideLine_MOBILE\\OpenCV\\.cxx\\Debug\\6z562g10\\arm64-v8a",
     "-GNinja",
     "-DANDROID_STL\u003dc++_shared"
   ],
   "stlLibraryFile": "C:\\Users\\thean\\AppData\\Local\\Android\\Sdk\\ndk\\27.0.12077973\\toolchains\\llvm\\prebuilt\\windows-x86_64\\sysroot\\usr\\lib\\aarch64-linux-android\\libc++_shared.so",
-  "intermediatesParentFolder": "C:\\Users\\thean\\guideline\\AR\\OpenCV\\build\\intermediates\\cxx\\Debug\\6z562g10"
+  "intermediatesParentFolder": "C:\\Users\\thean\\guideline\\GuideLine_MOBILE\\OpenCV\\build\\intermediates\\cxx\\Debug\\6z562g10"
 }

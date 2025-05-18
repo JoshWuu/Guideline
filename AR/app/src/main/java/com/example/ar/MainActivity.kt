@@ -19,21 +19,13 @@ import org.opencv.imgproc.Imgproc
 
 class MainActivity : ComponentActivity(), CameraBridgeViewBase.CvCameraViewListener2 {
     private lateinit var cameraView: JavaCameraView
-    private lateinit var sbMinDist: SeekBar
-    private lateinit var sbParam1: SeekBar
-    private lateinit var sbParam2: SeekBar
-    private lateinit var sbMinRadius: SeekBar
-    private lateinit var sbMaxRadius: SeekBar
-    private lateinit var tvMinDist: TextView
-    private lateinit var tvParam1: TextView
-    private lateinit var tvParam2: TextView
-    private lateinit var tvMinRadius: TextView
-    private lateinit var tvMaxRadius: TextView
-    private lateinit var calibrationPanel: View
+
+    private var pathPoints = listOf<Pair<Int, Int>>()
+    private var pathLineColor: Scalar = Scalar(0.0, 165.0, 255.0)
 
     // Constants for normalized breadboard representation
     private val NORMALIZED_WIDTH = 600  // Width for warped perspective
-    private val NORMALIZED_HEIGHT = 400 // Height for warped perspective
+    private val NORMALIZED_HEIGHT = 300 // Height for warped perspective
 
     // Constants for breadboard grid
     private val EXPECTED_ROWS = 30    // Standard half-size breadboard has ~30 rows
@@ -44,15 +36,9 @@ class MainActivity : ComponentActivity(), CameraBridgeViewBase.CvCameraViewListe
     private val colPositions = mutableListOf<Int>()
     private val HISTORY_SIZE = 5 // Number of frames to use for stabilization
 
-    // HoughCircles parameters with default values
-    private var minDist = 10.0
-    private var param1 = 50.0    // Higher threshold for Canny edge detector
-    private var param2 = 30.0    // Accumulator threshold
-    private var minRadius = 3    // Minimum hole radius
-    private var maxRadius = 10   // Maximum hole radius
+    private var currentIntersectionMatrix: Array<Array<Point?>> = Array(0) { Array(0) { null } }
+    private var highlightedPoints = mutableListOf<Pair<Int, Int>>() // Store row,col pairs to highlight
 
-    // Flag to show/hide calibration panel
-    private var showCalibration = false
 
     // Matrix to store the perspective transformed result
     private var warpedBreadboard: Mat? = null
@@ -76,26 +62,8 @@ class MainActivity : ComponentActivity(), CameraBridgeViewBase.CvCameraViewListe
 
         // Initialize UI components
         cameraView = findViewById(R.id.java_camera_view)
-        calibrationPanel = findViewById(R.id.calibration_panel)
-        sbMinDist = findViewById(R.id.sb_min_dist)
-        sbParam1 = findViewById(R.id.sb_param1)
-        sbParam2 = findViewById(R.id.sb_param2)
-        sbMinRadius = findViewById(R.id.sb_min_radius)
-        sbMaxRadius = findViewById(R.id.sb_max_radius)
-        tvMinDist = findViewById(R.id.tv_min_dist)
-        tvParam1 = findViewById(R.id.tv_param1)
-        tvParam2 = findViewById(R.id.tv_param2)
-        tvMinRadius = findViewById(R.id.tv_min_radius)
-        tvMaxRadius = findViewById(R.id.tv_max_radius)
 
-        // Setup initial values for seekbars
-        setupSeekBars()
 
-        // Set button click listener for toggling calibration panel
-        findViewById<View>(R.id.btn_calibrate).setOnClickListener {
-            showCalibration = !showCalibration
-            calibrationPanel.visibility = if (showCalibration) View.VISIBLE else View.GONE
-        }
 
         cameraView.setCvCameraViewListener(this)
 
@@ -107,77 +75,6 @@ class MainActivity : ComponentActivity(), CameraBridgeViewBase.CvCameraViewListe
         } else {
             startCamera()
         }
-    }
-
-    private fun setupSeekBars() {
-        // Initial values
-        sbMinDist.progress = minDist.toInt()
-        sbParam1.progress = param1.toInt()
-        sbParam2.progress = param2.toInt()
-        sbMinRadius.progress = minRadius
-        sbMaxRadius.progress = maxRadius
-
-        // Update text views
-        updateParameterDisplay()
-
-        // Set listeners for all seekbars
-        sbMinDist.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                minDist = progress.toDouble().coerceAtLeast(1.0)
-                updateParameterDisplay()
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar) {}
-        })
-
-        sbParam1.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                param1 = progress.toDouble().coerceAtLeast(1.0)
-                updateParameterDisplay()
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar) {}
-        })
-
-        sbParam2.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                param2 = progress.toDouble().coerceAtLeast(1.0)
-                updateParameterDisplay()
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar) {}
-        })
-
-        sbMinRadius.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                minRadius = progress.coerceAtLeast(1)
-                // Ensure minRadius is smaller than maxRadius
-                if (minRadius >= maxRadius) {
-                    maxRadius = minRadius + 1
-                    sbMaxRadius.progress = maxRadius
-                }
-                updateParameterDisplay()
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar) {}
-        })
-
-        sbMaxRadius.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                maxRadius = progress.coerceAtLeast(minRadius + 1)
-                updateParameterDisplay()
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar) {}
-        })
-    }
-
-    private fun updateParameterDisplay() {
-        tvMinDist.text = "Min Distance: ${minDist.toInt()}"
-        tvParam1.text = "Param1 (Canny): ${param1.toInt()}"
-        tvParam2.text = "Param2 (Threshold): ${param2.toInt()}"
-        tvMinRadius.text = "Min Radius: $minRadius"
-        tvMaxRadius.text = "Max Radius: $maxRadius"
     }
 
     private fun startCamera() {
@@ -360,7 +257,7 @@ class MainActivity : ComponentActivity(), CameraBridgeViewBase.CvCameraViewListe
             Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C,
             Imgproc.THRESH_BINARY_INV,
             11,
-            11.0
+            9.0
         )
 
         // Morphological operations
@@ -375,11 +272,11 @@ class MainActivity : ComponentActivity(), CameraBridgeViewBase.CvCameraViewListe
             circles,
             Imgproc.HOUGH_GRADIENT,
             1.0,
-            minDist,
-            param1,
-            param2,
-            minRadius,
-            maxRadius
+            5.0,
+            150.0,
+            50.0,
+            2,
+            25
         )
 
         // Process detected circles
@@ -511,229 +408,744 @@ class MainActivity : ComponentActivity(), CameraBridgeViewBase.CvCameraViewListe
         return sortedColumns
     }
 
-    /**
-     * Draw grid lines on the given Mat
-     */
-    private fun drawGridLines(mat: Mat, horizontalLines: List<Line>, verticalLines: List<Line>) {
-        // Draw horizontal lines in blue
-        for (line in horizontalLines) {
-            Imgproc.line(
-                mat,
-                Point(line.x1.toDouble(), line.y1.toDouble()),
-                Point(line.x2.toDouble(), line.y2.toDouble()),
-                Scalar(255.0, 0.0, 0.0),  // Blue color (BGR)
-                1
-            )
-        }
-
-        // Draw vertical lines in green
-        for (line in verticalLines) {
-            Imgproc.line(
-                mat,
-                Point(line.x1.toDouble(), line.y1.toDouble()),
-                Point(line.x2.toDouble(), line.y2.toDouble()),
-                Scalar(0.0, 255.0, 0.0),  // Green color (BGR)
-                1
-            )
-        }
-    }
-
-    /**
-     * Draw detected holes on the given Mat
-     */
-    private fun drawHoles(mat: Mat, holes: List<BreadboardHole>) {
-        for (hole in holes) {
-            // Draw circle outline - red for occupied, green for empty
-            val color = if (hole.isOccupied) {
-                Scalar(0.0, 0.0, 255.0)  // Red for occupied holes
-            } else {
-                Scalar(0.0, 255.0, 0.0)  // Green for empty holes
+    private fun highlightGridIntersection(
+        warped: Mat,
+        intersectionMatrix: Array<Array<Point?>>,
+        rowIndex: Int,
+        colIndex: Int,
+        color: Scalar = Scalar(0.0, 0.0, 255.0), // Default: Red
+        radius: Int = 5
+    ): Boolean {
+        try {
+            // Validate indices
+            if (rowIndex < 0 || rowIndex >= intersectionMatrix.size ||
+                colIndex < 0 || colIndex >= intersectionMatrix[0].size) {
+                Log.w("BreadboardDetector", "Invalid grid indices: $rowIndex, $colIndex")
+                return false
             }
 
+            // Get the intersection point
+            val intersection = intersectionMatrix[rowIndex][colIndex]
+
+            // Check if intersection exists
+            if (intersection == null) {
+                Log.w("BreadboardDetector", "No intersection at: $rowIndex, $colIndex")
+                return false
+            }
+
+            // Draw a prominent marker at the intersection
+            // Outer circle (border)
             Imgproc.circle(
-                mat,
-                Point(hole.x.toDouble(), hole.y.toDouble()),
-                hole.radius,
+                warped,
+                intersection,
+                radius + 2,
+                Scalar(0.0, 0.0, 0.0), // Black border
+                2
+            )
+
+            // Inner circle (fill)
+            Imgproc.circle(
+                warped,
+                intersection,
+                radius,
+                color,
+                -1 // Filled circle
+            )
+
+            // Add pulsing effect (optional - draws concentric circles)
+            Imgproc.circle(
+                warped,
+                intersection,
+                radius + 4,
                 color,
                 1
             )
 
-            // Draw circle center point
-            Imgproc.circle(
-                mat,
-                Point(hole.x.toDouble(), hole.y.toDouble()),
+            // Add label with coordinates
+            val label = "($rowIndex,$colIndex)"
+
+            // Create a background box for better text visibility
+            val textSize = Imgproc.getTextSize(
+                label,
+                Imgproc.FONT_HERSHEY_SIMPLEX,
+                0.5,
                 1,
-                color,
+                null
+            )
+
+            Imgproc.rectangle(
+                warped,
+                Point(intersection.x - 2, intersection.y - textSize.height - 4),
+                Point(intersection.x + textSize.width + 2, intersection.y),
+                Scalar(0.0, 0.0, 0.0),
+                -1 // Filled rectangle
+            )
+
+            // Draw the text
+            Imgproc.putText(
+                warped,
+                label,
+                Point(intersection.x, intersection.y - 4),
+                Imgproc.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                Scalar(255.0, 255.0, 255.0), // White text
                 1
             )
+
+            return true
+        } catch (e: Exception) {
+            Log.e("BreadboardDetector", "Error highlighting grid intersection: ${e.message}")
+            e.printStackTrace()
+            return false
+        }
+    }
+
+    data class GridIntersection(
+        val rowIndex: Int,
+        val colIndex: Int,
+        val point: Point,
+        var isOccupied: Boolean = false
+    )
+
+    /**
+     * Finds the intersection point of two lines
+     */
+    private fun findIntersection(line1: Line, line2: Line): Point? {
+        try {
+            // Convert lines to equations: ax + by + c = 0
+            val a1 = line1.y2 - line1.y1
+            val b1 = line1.x1 - line1.x2
+            val c1 = line1.x2 * line1.y1 - line1.x1 * line1.y2
+
+            val a2 = line2.y2 - line2.y1
+            val b2 = line2.x1 - line2.x2
+            val c2 = line2.x2 * line2.y1 - line2.x1 * line2.y2
+
+            val determinant = a1 * b2 - a2 * b1
+
+            // Lines are parallel if determinant is zero (or very close to zero)
+            if (Math.abs(determinant) < 1e-6) {
+                return null
+            }
+
+            val x = (b1 * c2 - b2 * c1) / determinant
+            val y = (a2 * c1 - a1 * c2) / determinant
+
+            return Point(x.toDouble(), y.toDouble())
+        } catch (e: Exception) {
+            Log.e("BreadboardDetector", "Error finding intersection: ${e.message}")
+            return null
         }
     }
 
     /**
-     * Enhanced algorithm to detect breadboards with visualization of detected features
+     * Creates a matrix from the intersections of horizontal and vertical lines
+     * and displays it on the image with improved visualization
      */
-    override fun onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame): Mat {
-        val rgba = inputFrame.rgba()
-
-        // 1. Convert to HSV
-        val hsv = Mat()
-        Imgproc.cvtColor(rgba, hsv, Imgproc.COLOR_RGB2HSV)
-
-        // 2. Threshold for white color (low saturation, high value)
-        val lowerWhite = Scalar(0.0, 0.0, 200.0)
-        val upperWhite = Scalar(180.0, 50.0, 255.0)
-        val mask = Mat()
-        Core.inRange(hsv, lowerWhite, upperWhite, mask)
-
-        // 3. Blur and threshold to reduce noise
-        val blurred = Mat()
-        Imgproc.GaussianBlur(mask, blurred, Size(7.0, 7.0), 1.5)
-        Imgproc.threshold(blurred, mask, 128.0, 255.0, Imgproc.THRESH_BINARY)
-
-        // Apply morphological closing to connect nearby regions
-        val kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(15.0, 15.0))
-        Imgproc.morphologyEx(mask, mask, Imgproc.MORPH_CLOSE, kernel)
-
-        // Erode to remove small noise
-        val erosionKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(3.0, 3.0))
-        Imgproc.erode(mask, mask, erosionKernel, Point(-1.0, -1.0), 3)
-
-        // 4. Find contours on mask
-        val contours = mutableListOf<MatOfPoint>()
-        val hierarchy = Mat()
-        Imgproc.findContours(mask, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE)
-
-        // 5. Find largest contour by area (assumed breadboard)
-        var maxContour: MatOfPoint? = null
-        var maxArea = 0.0
-        for (contour in contours) {
-            val area = Imgproc.contourArea(contour)
-            if (area > maxArea) {
-                maxArea = area
-                maxContour = contour
+    private fun createIntersectionMatrix(
+        warped: Mat,
+        horizontalLines: List<Line>,
+        verticalLines: List<Line>
+    ): Array<Array<Point?>> {
+        try {
+            // Safety check for empty lines
+            if (horizontalLines.isEmpty() || verticalLines.isEmpty()) {
+                Log.w("BreadboardDetector", "No grid lines detected")
+                return Array(0) { Array<Point?>(0) { null } }
             }
+
+            // Create a matrix to store intersection points
+            val matrix = Array(horizontalLines.size) { Array<Point?>(verticalLines.size) { null } }
+
+            // Find all intersections
+            for (rowIndex in horizontalLines.indices) {
+                val hLine = horizontalLines[rowIndex]
+                for (colIndex in verticalLines.indices) {
+                    val vLine = verticalLines[colIndex]
+                    val intersection = findIntersection(hLine, vLine)
+
+                    // Store intersection point in matrix
+                    matrix[rowIndex][colIndex] = intersection
+
+                    // Draw the intersection point on the warped image for visualization
+                    intersection?.let {
+                        // Make sure coordinates are within image bounds
+                        if (it.x >= 0 && it.x < warped.width() && it.y >= 0 && it.y < warped.height()) {
+                            // Calculate dynamic circle color based on position
+                            // This creates a heat map effect across the grid
+                            val hFactor = rowIndex.toDouble() / horizontalLines.size.coerceAtLeast(1)
+                            val vFactor = colIndex.toDouble() / verticalLines.size.coerceAtLeast(1)
+
+                            val blue = (255 * (1 - hFactor)).toInt()
+                            val green = (255 * vFactor * hFactor).toInt()
+                            val red = (255 * vFactor).toInt()
+
+                            // Draw circle at intersection with varying colors
+                            Imgproc.circle(
+                                warped,
+                                Point(it.x, it.y),
+                                2,  // smaller radius for less clutter
+                                Scalar(blue.toDouble(), green.toDouble(), red.toDouble()),
+                                -1  // filled circle
+                            )
+
+                            // Only draw labels for some intersections to avoid clutter
+                            if ((rowIndex % 5 == 0 || rowIndex == horizontalLines.size - 1) &&
+                                (colIndex % 5 == 0 || colIndex == verticalLines.size - 1)) {
+
+                                // Draw a background box for the text to improve readability
+                                val textSize = Imgproc.getTextSize(
+                                    "$rowIndex,$colIndex",
+                                    Imgproc.FONT_HERSHEY_PLAIN,
+                                    0.7,
+                                    1,
+                                    null
+                                )
+
+                                Imgproc.rectangle(
+                                    warped,
+                                    Point(it.x + 2, it.y - textSize.height - 2),
+                                    Point(it.x + textSize.width + 6, it.y),
+                                    Scalar(0.0, 0.0, 0.0),
+                                    -1
+                                )
+
+                                Imgproc.putText(
+                                    warped,
+                                    "$rowIndex,$colIndex",
+                                    Point(it.x + 4, it.y - 2),
+                                    Imgproc.FONT_HERSHEY_PLAIN,
+                                    0.7,
+                                    Scalar(255.0, 255.0, 255.0),
+                                    1
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            return matrix
+        } catch (e: Exception) {
+            Log.e("BreadboardDetector", "Error creating intersection matrix: ${e.message}")
+            e.printStackTrace()
+            return Array(0) { Array<Point?>(0) { null } }
+        }
+    }
+
+    /**
+     * Displays the grid and matrix on the warped image with color coding
+     */
+    /**
+     * Modified displayGridMatrix function that returns the generated intersection matrix
+     * for use with the highlighting function
+     */
+    private fun displayGridMatrix(warped: Mat, horizontalLines: List<Line>, verticalLines: List<Line>): Array<Array<Point?>> {
+        try {
+            // Safety check for null or empty inputs
+            if (warped.empty() || horizontalLines.isEmpty() || verticalLines.isEmpty()) {
+                Log.w("BreadboardDetector", "Cannot display grid matrix: Invalid inputs")
+                return Array(0) { Array<Point?>(0) { null } }
+            }
+
+            // Draw horizontal lines with color gradient for better visualization
+            for (i in horizontalLines.indices) {
+                val line = horizontalLines[i]
+                // Generate color based on index (gradient from blue to cyan)
+                val blueComponent = 255
+                val greenComponent = (255.0 * i / horizontalLines.size).toInt().coerceIn(0, 255)
+
+                Imgproc.line(
+                    warped,
+                    Point(line.x1.toDouble(), line.y1.toDouble()),
+                    Point(line.x2.toDouble(), line.y2.toDouble()),
+                    Scalar(blueComponent.toDouble(), greenComponent.toDouble(), 0.0), // blue-cyan gradient
+                    1
+                )
+
+                // Add row numbers on the left side
+                Imgproc.putText(
+                    warped,
+                    "$i",
+                    Point(5.0, line.y1.toDouble()),
+                    Imgproc.FONT_HERSHEY_SIMPLEX,
+                    0.4,
+                    Scalar(blueComponent.toDouble(), greenComponent.toDouble(), 0.0),
+                    1
+                )
+            }
+
+            // Draw vertical lines with color gradient
+            for (i in verticalLines.indices) {
+                val line = verticalLines[i]
+                // Generate color based on index (gradient from red to yellow)
+                val redComponent = 255
+                val greenComponent = (255.0 * i / verticalLines.size).toInt().coerceIn(0, 255)
+
+                Imgproc.line(
+                    warped,
+                    Point(line.x1.toDouble(), line.y1.toDouble()),
+                    Point(line.x2.toDouble(), line.y2.toDouble()),
+                    Scalar(0.0, greenComponent.toDouble(), redComponent.toDouble()), // red-yellow gradient
+                    1
+                )
+
+                // Add column numbers at the top
+                Imgproc.putText(
+                    warped,
+                    "$i",
+                    Point(line.x1.toDouble(), 12.0),
+                    Imgproc.FONT_HERSHEY_SIMPLEX,
+                    0.4,
+                    Scalar(0.0, greenComponent.toDouble(), redComponent.toDouble()),
+                    1
+                )
+            }
+
+            // Create and display intersection matrix
+            val intersectionMatrix = createIntersectionMatrix(warped, horizontalLines, verticalLines)
+
+            // Display number of rows and columns in the intersection matrix
+            Log.d("BreadboardDetector", "Intersection matrix size: ${intersectionMatrix.size} rows x ${if (intersectionMatrix.isNotEmpty()) intersectionMatrix[0].size else 0} columns")
+
+            // Draw grid dimensions on warped image
+            val textBgPts = MatOfPoint()
+            textBgPts.fromArray(
+                Point(5.0, warped.height() - 35.0),
+                Point(150.0, warped.height() - 35.0),
+                Point(150.0, warped.height() - 5.0),
+                Point(5.0, warped.height() - 5.0)
+            )
+
+            Imgproc.fillConvexPoly(
+                warped,
+                textBgPts,
+                Scalar(0.0, 0.0, 0.0, 200.0)  // semi-transparent black
+            )
+
+            Imgproc.putText(
+                warped,
+                "Grid: ${horizontalLines.size}x${verticalLines.size}",
+                Point(10.0, warped.height() - 15.0),
+                Imgproc.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                Scalar(255.0, 255.0, 255.0),
+                1
+            )
+
+            textBgPts.release()
+
+            // Return the intersection matrix for use with the highlighting function
+            return intersectionMatrix
+        } catch (e: Exception) {
+            Log.e("BreadboardDetector", "Error displaying grid matrix: ${e.message}")
+            e.printStackTrace()
+            return Array(0) { Array<Point?>(0) { null } }
+        }
+    }
+
+
+    /**
+     * Enhanced algorithm with grid matrix detection and improved visualization
+     */
+    fun highlightGridPoint(rowIndex: Int, colIndex: Int): Boolean {
+        // Validate indices against current matrix size
+        val isValid = rowIndex >= 0 &&
+                colIndex >= 0 &&
+                currentIntersectionMatrix.isNotEmpty() &&
+                rowIndex < currentIntersectionMatrix.size &&
+                colIndex < currentIntersectionMatrix[0].size
+
+        if (isValid) {
+            // Add to points to highlight list
+            highlightedPoints.add(Pair(rowIndex, colIndex))
+            Log.d("BreadboardDetector", "Added grid point to highlight: $rowIndex, $colIndex")
+        } else {
+            Log.w("BreadboardDetector", "Invalid grid point: $rowIndex, $colIndex. " +
+                    "Grid size: ${currentIntersectionMatrix.size}x" +
+                    "${if (currentIntersectionMatrix.isNotEmpty()) currentIntersectionMatrix[0].size else 0}")
         }
 
-        // 6. Process the largest contour (assumed breadboard)
-        maxContour?.let {
-            val contour2f = MatOfPoint2f(*it.toArray())
+        return isValid
+    }
 
-            // Approximate polygon with epsilon = 2% of contour perimeter
-            val peri = Imgproc.arcLength(contour2f, true)
-            val approx = MatOfPoint2f()
-            Imgproc.approxPolyDP(contour2f, approx, 0.02 * peri, true)
+    /**
+     * Clears all highlighted points
+     */
+    fun clearHighlightedPoints() {
+        highlightedPoints.clear()
+        Log.d("BreadboardDetector", "Cleared all highlighted grid points")
+    }
+    fun highlightMultipleGridPoints(
+        points: List<Pair<Int, Int>>,
+        colors: List<Scalar>? = null
+    ): Int {
+        // Clear previous highlights if requested
+        highlightedPoints.clear()
 
-            val points = approx.toArray()
+        var validPoints = 0
 
-            if (points.size == 4) {
-                // Draw green polygon lines between 4 corners
-                for (i in points.indices) {
-                    Imgproc.line(rgba, points[i], points[(i + 1) % 4], Scalar(0.0, 255.0, 0.0), 3)
+        // Default color cycle if colors not provided
+        val defaultColors = listOf(
+            Scalar(0.0, 0.0, 255.0),    // Red
+            Scalar(0.0, 255.0, 255.0),  // Yellow
+            Scalar(255.0, 0.0, 0.0),    // Blue
+            Scalar(255.0, 0.0, 255.0),  // Magenta
+            Scalar(0.0, 255.0, 0.0),    // Green
+            Scalar(128.0, 0.0, 128.0)   // Purple
+        )
+
+        // Process each point
+        points.forEachIndexed { index, (rowIndex, colIndex) ->
+            // Validate indices against current matrix size
+            val isValid = rowIndex >= 0 &&
+                    colIndex >= 0 &&
+                    currentIntersectionMatrix.isNotEmpty() &&
+                    rowIndex < currentIntersectionMatrix.size &&
+                    colIndex < currentIntersectionMatrix[0].size
+
+            if (isValid) {
+                // Determine color for this point
+                val color = if (colors != null && index < colors.size) {
+                    colors[index]
+                } else {
+                    defaultColors[index % defaultColors.size]
                 }
 
-                // Add text label for breadboard
-                Imgproc.putText(
+                // Add to points to highlight list with the selected color
+                highlightedPoints.add(Pair(rowIndex, colIndex))
+                validPoints++
+
+                Log.d("BreadboardDetector", "Added grid point to highlight: $rowIndex, $colIndex")
+            } else {
+                Log.w("BreadboardDetector", "Invalid grid point: $rowIndex, $colIndex. " +
+                        "Grid size: ${currentIntersectionMatrix.size}x" +
+                        "${if (currentIntersectionMatrix.isNotEmpty()) currentIntersectionMatrix[0].size else 0}")
+            }
+        }
+
+        return validPoints
+    }
+    fun highlightGridPath(
+        points: List<Pair<Int, Int>>,
+        pathColor: Scalar = Scalar(0.0, 165.0, 255.0), // Orange
+        pointColor: Scalar = Scalar(0.0, 0.0, 255.0)   // Red
+    ): Int {
+        // Store points for regular highlighting
+        val validPoints = highlightMultipleGridPoints(points, List(points.size) { pointColor })
+
+        // Also store the path information to draw connecting lines
+        // (We'll need to modify the onCameraFrame method to use this)
+        pathPoints = points.filter { (row, col) ->
+            row >= 0 &&
+                    col >= 0 &&
+                    currentIntersectionMatrix.isNotEmpty() &&
+                    row < currentIntersectionMatrix.size &&
+                    col < currentIntersectionMatrix[0].size
+        }
+
+        pathLineColor = pathColor
+
+        return validPoints
+    }
+
+    override fun onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame): Mat {
+        try {
+            val rgba = inputFrame.rgba()
+            val hsv = Mat()
+            Imgproc.cvtColor(rgba, hsv, Imgproc.COLOR_RGB2HSV)
+
+            // 2. Threshold for white color (low saturation, high value)
+            val lowerWhite = Scalar(0.0, 0.0, 200.0)
+            val upperWhite = Scalar(180.0, 50.0, 255.0)
+            val mask = Mat()
+            Core.inRange(hsv, lowerWhite, upperWhite, mask)
+
+            // 3. Blur and threshold to reduce noise
+            val blurred = Mat()
+            Imgproc.GaussianBlur(mask, blurred, Size(7.0, 7.0), 1.5)
+            Imgproc.threshold(blurred, mask, 128.0, 255.0, Imgproc.THRESH_BINARY)
+
+            // Apply morphological closing to connect nearby regions
+            val kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(15.0, 15.0))
+            Imgproc.morphologyEx(mask, mask, Imgproc.MORPH_CLOSE, kernel)
+
+            // Erode to remove small noise
+            val erosionKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(3.0, 3.0))
+            Imgproc.erode(mask, mask, erosionKernel, Point(-1.0, -1.0), 3)
+
+            // 4. Find contours on mask
+            val contours = mutableListOf<MatOfPoint>()
+            val hierarchy = Mat()
+            Imgproc.findContours(mask, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE)
+
+            // 5. Find largest contour by area (assumed breadboard)
+            var maxContour: MatOfPoint? = null
+            var maxArea = 0.0
+            for (contour in contours) {
+                val area = Imgproc.contourArea(contour)
+                if (area > maxArea) {
+                    maxArea = area
+                    maxContour = contour
+                }
+            }
+
+            // Variables to store detected rows and columns count for display
+            var rowCount = 0
+            var colCount = 0
+            var detectedCorners = 0
+
+            // 6. Process the largest contour (assumed breadboard)
+            maxContour?.let {
+                // Draw full contour outline in yellow for debugging
+                Imgproc.drawContours(
                     rgba,
-                    "Breadboard",
-                    Point(points[0].x, points[0].y - 10),
-                    Imgproc.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    Scalar(0.0, 255.0, 0.0),
+                    listOf(it),
+                    0,
+                    Scalar(255.0, 255.0, 0.0), // Yellow
                     2
                 )
 
-                // Apply perspective transform to get normalized top-down view
-                warpedBreadboard?.release()
-                warpedBreadboard = applyPerspectiveTransform(rgba, points)
+                val contour2f = MatOfPoint2f(*it.toArray())
 
-                // Create a small preview of the warped image in the corner
-                if (warpedBreadboard != null) {
-                    // Use the enhanced robust grid detection (HoughLines approach)
-                    val (horizontalLines, verticalLines) = detectBreadboardGridRobust(warpedBreadboard!!)
+                // Approximate polygon with epsilon = 2% of contour perimeter
+                val peri = Imgproc.arcLength(contour2f, true)
+                val approx = MatOfPoint2f()
+                Imgproc.approxPolyDP(contour2f, approx, 0.02 * peri, true)
 
-                    // Use HoughCircles to detect holes and their occupancy
-                    val holes = detectBreadboardHoles(warpedBreadboard!!)
+                val points = approx.toArray()
+                detectedCorners = points.size
 
-                    // Draw the grid lines and holes on the warped breadboard
-                    val warpedWithOverlays = warpedBreadboard!!.clone()
-                    drawGridLines(warpedWithOverlays, horizontalLines, verticalLines)
-                    drawHoles(warpedWithOverlays, holes)
-
-                    // Create the preview image
-                    val preview = Mat()
-                    val previewSize = Size(rgba.width() * 0.3, rgba.height() * 0.3)
-                    Imgproc.resize(warpedWithOverlays, preview, previewSize)
-
-                    // Create an ROI in the top-right corner of the main image
-                    val roi = rgba.submat(
-                        0,
-                        preview.height().toInt(),
-                        rgba.width() - preview.width().toInt(),
-                        rgba.width()
-                    )
-
-                    // Copy the preview into the ROI
-                    preview.copyTo(roi)
-
-                    // Draw a border around the preview
-                    Imgproc.rectangle(
+                // Draw dots at all corners of the approximate polygon
+                for (point in points) {
+                    Imgproc.circle(
                         rgba,
-                        Point(rgba.width().toDouble() - preview.width().toDouble(), 0.0),
-                        Point(rgba.width().toDouble(), preview.height().toDouble()),
-                        Scalar(255.0, 255.0, 255.0),
+                        point,
+                        8,
+                        Scalar(255.0, 0.0, 255.0), // Magenta
+                        -1
+                    )
+                }
+
+                if (points.size == 4) {
+                    // Draw green polygon lines between 4 corners
+                    for (i in points.indices) {
+                        Imgproc.line(rgba, points[i], points[(i + 1) % 4], Scalar(0.0, 255.0, 0.0), 3)
+                    }
+
+                    // Add text label for breadboard
+                    Imgproc.putText(
+                        rgba,
+                        "Breadboard",
+                        Point(points[0].x, points[0].y - 10),
+                        Imgproc.FONT_HERSHEY_SIMPLEX,
+                        0.7,
+                        Scalar(0.0, 255.0, 0.0),
                         2
                     )
 
-                    // Display grid line and hole detection stats
-                    Imgproc.putText(
-                        rgba,
-                        "Grid: ${horizontalLines.size}r x ${verticalLines.size}c",
-                        Point(10.0, rgba.height() - 40.0),
-                        Imgproc.FONT_HERSHEY_SIMPLEX,
-                        0.5,
-                        Scalar(255.0, 255.0, 255.0),
-                        1
-                    )
+                    // Apply perspective transform to get normalized top-down view
+                    warpedBreadboard?.release()
+                    warpedBreadboard = applyPerspectiveTransform(rgba, points)
 
-                    Imgproc.putText(
-                        rgba,
-                        "Holes: ${holes.size} (${holes.count { it.isOccupied }} occupied)",
-                        Point(10.0, rgba.height() - 20.0),
-                        Imgproc.FONT_HERSHEY_SIMPLEX,
-                        0.5,
-                        Scalar(255.0, 255.0, 255.0),
-                        1
-                    )
-
-                    // Clean up
-                    preview.release()
-                    warpedWithOverlays.release()
+                } else {
+                    // Fallback: draw rotated rectangle in red if not 4 points
+                    val rotatedRect = Imgproc.minAreaRect(contour2f)
+                    val boxPoints = Array(4) { Point() }
+                    rotatedRect.points(boxPoints)
+                    for (i in boxPoints.indices) {
+                        Imgproc.line(rgba, boxPoints[i], boxPoints[(i + 1) % 4], Scalar(0.0, 0.0, 255.0), 3)
+                    }
                 }
-            } else {
-                // Fallback: draw rotated rectangle in red if not 4 points
-                val rotatedRect = Imgproc.minAreaRect(contour2f)
-                val boxPoints = Array(4) { Point() }
-                rotatedRect.points(boxPoints)
-                for (i in boxPoints.indices) {
-                    Imgproc.line(rgba, boxPoints[i], boxPoints[(i + 1) % 4], Scalar(0.0, 0.0, 255.0), 3)
+
+                // Clean up
+                contour2f.release()
+                approx.release()
+            }
+
+            // After processing breadboard and applying perspective transform
+            warpedBreadboard?.let { warped ->
+                try {
+                    // Safety check for warped image
+                    if (warped.empty()) {
+                        Log.w("BreadboardDetector", "Warped breadboard is empty")
+                        displayDebugInfo(rgba, detectedCorners, 0, 0)
+                        return rgba
+                    }
+
+                    // Detect grid lines
+                    val gridInfo = detectBreadboardGridRobust(warped)
+                    val horizontalLines = gridInfo.first
+                    val verticalLines = gridInfo.second
+
+                    // Store line counts for debug display
+                    rowCount = horizontalLines.size
+                    colCount = verticalLines.size
+
+                    // Check if we have valid grid lines
+                    if (horizontalLines.isNotEmpty() && verticalLines.isNotEmpty()) {
+                        // Create a copy of warped for display
+                        val warpedForDisplay = warped.clone()
+
+                        // Create and display the intersection matrix, store the result
+                        currentIntersectionMatrix = displayGridMatrix(warpedForDisplay, horizontalLines, verticalLines)
+
+                        // Apply highlights for all requested grid points
+                        highlightedPoints.forEach { (row, col) ->
+                            highlightGridIntersection(
+                                warpedForDisplay,
+                                currentIntersectionMatrix,
+                                row,
+                                col,
+                                Scalar(0.0, 255.0, 255.0), // Cyan highlight
+                                6 // Slightly larger radius for visibility
+                            )
+                        }
+
+                        // Show the warped view with grid and intersections in the corner
+                        try {
+                            // Resize for display
+                            val warpedDisplay = warpedForDisplay.clone()
+                            Imgproc.resize(warpedDisplay, warpedDisplay, Size(rgba.width() / 4.0, rgba.height() / 4.0))
+
+                            // Draw the warped display in the corner of the main frame
+                            if (warpedDisplay.width() > 0 && warpedDisplay.height() > 0 &&
+                                warpedDisplay.width() <= rgba.width() && warpedDisplay.height() <= rgba.height()) {
+                                val roi = Mat(rgba, Rect(0, 0, warpedDisplay.width(), warpedDisplay.height()))
+                                warpedDisplay.copyTo(roi)
+
+                                // Draw border around the preview
+                                Imgproc.rectangle(
+                                    rgba,
+                                    Point(0.0, 0.0),
+                                    Point(warpedDisplay.width().toDouble(), warpedDisplay.height().toDouble()),
+                                    Scalar(255.0, 255.0, 255.0),
+                                    2
+                                )
+                            }
+
+                            warpedDisplay.release()
+                        } catch (e: Exception) {
+                            Log.e("BreadboardDetector", "Error displaying warped image: ${e.message}")
+                        }
+
+                        warpedForDisplay.release()
+                    } else {
+                        // Reset intersection matrix if no grid lines detected
+                        currentIntersectionMatrix = Array(0) { Array(0) { null } }
+
+                        Log.w("BreadboardDetector", "No grid lines detected")
+                        // Display warped image without grid
+                        try {
+                            val warpedDisplay = warped.clone()
+                            Imgproc.resize(warpedDisplay, warpedDisplay, Size(rgba.width() / 4.0, rgba.height() / 4.0))
+                            val roi = Mat(rgba, Rect(0, 0, warpedDisplay.width(), warpedDisplay.height()))
+                            warpedDisplay.copyTo(roi)
+                            warpedDisplay.release()
+                        } catch (e: Exception) {
+                            Log.e("BreadboardDetector", "Error displaying raw warped image: ${e.message}")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("BreadboardDetector", "Error processing warped breadboard: ${e.message}")
+                    e.printStackTrace()
                 }
             }
 
-            // Clean up
-            contour2f.release()
-            approx.release()
+            clearHighlightedPoints()
+
+// Check if there's a valid grid
+            if (currentIntersectionMatrix.isNotEmpty() && currentIntersectionMatrix[0].isNotEmpty()) {
+                // Get the dimensions of the grid
+                val lastRowIndex = currentIntersectionMatrix.size - 1
+                val lastColIndex = currentIntersectionMatrix[0].size - 1
+
+                // Create a list with first and last point
+                val pointsToHighlight = listOf(
+                    Pair(0, 0),                      // First point (0,0)
+                    Pair(lastRowIndex, lastColIndex) // Last point (max row, max col)
+                )
+
+                // Define colors for the points (first=green, last=red)
+                val colors = listOf(
+                    Scalar(0.0, 255.0, 0.0),       // Green for first point
+                    Scalar(0.0, 0.0, 255.0)        // Red for last point
+                )
+
+                // Use existing function to highlight the points
+                highlightMultipleGridPoints(pointsToHighlight, colors)
+
+                Log.d("BreadboardDetector", "Highlighted first point (0,0) and last point ($lastRowIndex,$lastColIndex)")
+            }
+            // Display debug info in top corner
+            displayDebugInfo(rgba, detectedCorners, rowCount, colCount)
+
+            // Clean up resources
+            hsv.release()
+            mask.release()
+            blurred.release()
+            hierarchy.release()
+            contours.forEach { it.release() }
+
+            return rgba
+        } catch (e: Exception) {
+            Log.e("BreadboardDetector", "Critical error in onCameraFrame: ${e.message}")
+            e.printStackTrace()
+            // Return an empty frame or the original frame in case of error
+            return inputFrame.rgba()
         }
-
-        // Clean up resources
-        hsv.release()
-        mask.release()
-        blurred.release()
-        hierarchy.release()
-        contours.forEach { it.release() }
-
-        // Return image with overlayed polygon or rectangle
-        return rgba
     }
+
+    /**
+     * Displays debug information on the frame
+     */
+    private fun displayDebugInfo(frame: Mat, corners: Int, rows: Int, cols: Int) {
+        try {
+            // Create background for text
+            Imgproc.rectangle(
+                frame,
+                Point(frame.width() - 220.0, 10.0),
+                Point(frame.width() - 10.0, 100.0),
+                Scalar(0.0, 0.0, 0.0, 150.0), // semi-transparent black
+                -1
+            )
+
+            // Draw debug information text
+            Imgproc.putText(
+                frame,
+                "Detected Corners: $corners",
+                Point(frame.width() - 210.0, 30.0),
+                Imgproc.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                Scalar(255.0, 255.0, 255.0),
+                1
+            )
+
+            Imgproc.putText(
+                frame,
+                "Rows (H-Lines): $rows",
+                Point(frame.width() - 210.0, 50.0),
+                Imgproc.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                Scalar(255.0, 255.0, 255.0),
+                1
+            )
+
+            Imgproc.putText(
+                frame,
+                "Cols (V-Lines): $cols",
+                Point(frame.width() - 210.0, 70.0),
+                Imgproc.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                Scalar(255.0, 255.0, 255.0),
+                1
+            )
+
+        } catch (e: Exception) {
+            Log.e("BreadboardDetector", "Error displaying debug info: ${e.message}")
+        }
+    }
+
 
     override fun onResume() {
         super.onResume()
