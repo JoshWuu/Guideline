@@ -2,30 +2,23 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import TxtUploader from "./components/upload";
+// import { deleteAll } from "./api/db/functions";
 
 export default function Home() {
   const [QR, setQR] = useState<string>("");
   const [ID, setID] = useState<string>("");
-  const [netFile, setNetFile] = useState<any>(null);
 
-  // dummy
-  useEffect(() => {
-    fetchSP();
-  });
+  // DELETE
+  // useEffect(()=>{
+  //   fetch("/api/functions", {
+  //     method: "POST",
+  //   });
+  // })
 
-  // const handleFileChange = (event) => {
-  //   setSelectedFile(event.target.files[0]);
-  // };
-
-  const fetchSP = async () => {
-    const res = await fetch("/dummy.txt");
-    const text = await res.text();
-    setNetFile(text);
-  };
-
-  const handleUpload = async (file: File) => {
+  const handleUpload = async (file: string | null) => {
     const formData = new FormData();
-    formData.append("netlist", file);
+    formData.append("netlist", file!);
 
     const res = await fetch("/api/routes", {
       method: "POST",
@@ -65,16 +58,22 @@ export default function Home() {
         </div>
 
         <div className="w-full flex items-center justify-center mt-10 flex-col">
-          <button
+          {/* <button
             onClick={() => handleUpload(netFile)}
             className="p-5 bg-violet-100/80 w-40 rounded-md cursor-pointer hover:bg-violet-100/75 transition-all duration-200 ease-in-out delay-100"
           >
             upload netfile
-          </button>
+          </button> */}
+          <TxtUploader
+            onFileSelect={(file) => {
+              console.log("Selected file:", file);
+              handleUpload(file);
+            }}
+          ></TxtUploader>
 
           {QR !== "" && (
             <div className="mt-10 relative">
-              <img src={QR} alt="qr code" />
+              <img src={QR} alt="qr code" className="w-60"/>
               <button className="absolute top-0 right-0 cursor-pointer"></button>
             </div>
           )}

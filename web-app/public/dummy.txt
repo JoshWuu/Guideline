@@ -20,6 +20,10 @@ D1 out 0 DModel         ; Diode
 * BJT
 Q1 out in Vdd NPNModel  ; NPN BJT
 
+V1 N001 0 DC 5
+R1 N001 N002 220
+LED1 N002 0
+
 * Models
 .model PMOS PMOS (LEVEL=1)
 .model NMOS NMOS (LEVEL=1)
