@@ -34,6 +34,13 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
     private lateinit var cameraView: JavaCameraView
     private lateinit var placements: List<ComponentPlacement>
 
+    private var currentComponentIndex = 0
+    private var currentPinIndex = 0
+    private var lastUpdateTime = 0L
+    private val PIN_HIGHLIGHT_DELAY_MS = 1000L // 1 second between pin highlights
+    private var isHighlightingActive = false
+    private var isComponentHighlightingPaused = false
+
     private var inverseTransformMatrix: Mat? = null
     private var pathPoints = listOf<Pair<Int, Int>>()
     private var pathLineColor: Scalar = Scalar(0.0, 165.0, 255.0)
@@ -52,7 +59,8 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
     private val HISTORY_SIZE = 5 // Number of frames to use for stabilization
 
     private var currentIntersectionMatrix: Array<Array<Point?>> = Array(0) { Array(0) { null } }
-    private var highlightedPoints = mutableListOf<Pair<Int, Int>>() // Store row,col pairs to highlight
+    private var highlightedPoints =
+        mutableListOf<Pair<Int, Int>>() // Store row,col pairs to highlight
 
 
     // Matrix to store the perspective transformed result
@@ -109,6 +117,12 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
         } else {
             startCamera()
         }
+        // Check for duplicate pins
+        checkForDuplicatePins()
+
+        // Set up UI controls for pin highlighting
+        setupHighlightingControls()
+
     }
 
     private fun startCamera() {
@@ -236,7 +250,8 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
             try {
                 // Check if the point is within the grid
                 if (row >= 0 && row < currentIntersectionMatrix.size &&
-                    col >= 0 && col < currentIntersectionMatrix[0].size) {
+                    col >= 0 && col < currentIntersectionMatrix[0].size
+                ) {
 
                     // Get the intersection point in warped view
                     val warpedPoint = currentIntersectionMatrix[row][col]
@@ -436,12 +451,14 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
                 // You may need to adjust this threshold based on lighting conditions
                 val isOccupied = pixelValue < 100.0
 
-                holes.add(BreadboardHole(
-                    center.x.toInt(),
-                    center.y.toInt(),
-                    radius,
-                    isOccupied
-                ))
+                holes.add(
+                    BreadboardHole(
+                        center.x.toInt(),
+                        center.y.toInt(),
+                        radius,
+                        isOccupied
+                    )
+                )
             }
         }
 
@@ -460,14 +477,14 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
         val kernelSize = 9
         val sigma = 2.0
         val kernel = DoubleArray(kernelSize) { i ->
-            val x = i - kernelSize/2
-            Math.exp(-(x*x)/(2*sigma*sigma))
+            val x = i - kernelSize / 2
+            Math.exp(-(x * x) / (2 * sigma * sigma))
         }
         val sum = kernel.sum()
         return DoubleArray(array.size) { i ->
             var acc = 0.0
             for (k in 0 until kernelSize) {
-                val idx = i + k - kernelSize/2
+                val idx = i + k - kernelSize / 2
                 if (idx in array.indices) acc += array[idx] * kernel[k]
             }
             acc / sum
@@ -485,7 +502,8 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
         for (i in 1 until projection.size - 1) {
             if (projection[i] > minPeakHeight &&
                 projection[i] > projection[i - 1] &&
-                projection[i] > projection[i + 1]) {
+                projection[i] > projection[i + 1]
+            ) {
 
                 // Check if this peak is far enough from previously detected peaks
                 val farEnough = peaks.all { Math.abs(it - i) > minPeakDistance }
@@ -559,7 +577,8 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
         try {
             // Validate indices
             if (rowIndex < 0 || rowIndex >= intersectionMatrix.size ||
-                colIndex < 0 || colIndex >= intersectionMatrix[0].size) {
+                colIndex < 0 || colIndex >= intersectionMatrix[0].size
+            ) {
                 Log.w("BreadboardDetector", "Invalid grid indices: $rowIndex, $colIndex")
                 return false
             }
@@ -713,7 +732,8 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
                         if (it.x >= 0 && it.x < warped.width() && it.y >= 0 && it.y < warped.height()) {
                             // Calculate dynamic circle color based on position
                             // This creates a heat map effect across the grid
-                            val hFactor = rowIndex.toDouble() / horizontalLines.size.coerceAtLeast(1)
+                            val hFactor =
+                                rowIndex.toDouble() / horizontalLines.size.coerceAtLeast(1)
                             val vFactor = colIndex.toDouble() / verticalLines.size.coerceAtLeast(1)
 
                             val blue = (255 * (1 - hFactor)).toInt()
@@ -731,7 +751,8 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
 
                             // Only draw labels for some intersections to avoid clutter
                             if ((rowIndex % 5 == 0 || rowIndex == horizontalLines.size - 1) &&
-                                (colIndex % 5 == 0 || colIndex == verticalLines.size - 1)) {
+                                (colIndex % 5 == 0 || colIndex == verticalLines.size - 1)
+                            ) {
 
                                 // Draw a background box for the text to improve readability
                                 val textSize = Imgproc.getTextSize(
@@ -780,7 +801,11 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
      * Modified displayGridMatrix function that returns the generated intersection matrix
      * for use with the highlighting function
      */
-    private fun displayGridMatrix(warped: Mat, horizontalLines: List<Line>, verticalLines: List<Line>): Array<Array<Point?>> {
+    private fun displayGridMatrix(
+        warped: Mat,
+        horizontalLines: List<Line>,
+        verticalLines: List<Line>
+    ): Array<Array<Point?>> {
         try {
             // Safety check for null or empty inputs
             if (warped.empty() || horizontalLines.isEmpty() || verticalLines.isEmpty()) {
@@ -799,7 +824,11 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
                     warped,
                     Point(line.x1.toDouble(), line.y1.toDouble()),
                     Point(line.x2.toDouble(), line.y2.toDouble()),
-                    Scalar(blueComponent.toDouble(), greenComponent.toDouble(), 0.0), // blue-cyan gradient
+                    Scalar(
+                        blueComponent.toDouble(),
+                        greenComponent.toDouble(),
+                        0.0
+                    ), // blue-cyan gradient
                     1
                 )
 
@@ -826,7 +855,11 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
                     warped,
                     Point(line.x1.toDouble(), line.y1.toDouble()),
                     Point(line.x2.toDouble(), line.y2.toDouble()),
-                    Scalar(0.0, greenComponent.toDouble(), redComponent.toDouble()), // red-yellow gradient
+                    Scalar(
+                        0.0,
+                        greenComponent.toDouble(),
+                        redComponent.toDouble()
+                    ), // red-yellow gradient
                     1
                 )
 
@@ -843,10 +876,14 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
             }
 
             // Create and display intersection matrix
-            val intersectionMatrix = createIntersectionMatrix(warped, horizontalLines, verticalLines)
+            val intersectionMatrix =
+                createIntersectionMatrix(warped, horizontalLines, verticalLines)
 
             // Display number of rows and columns in the intersection matrix
-            Log.d("BreadboardDetector", "Intersection matrix size: ${intersectionMatrix.size} rows x ${if (intersectionMatrix.isNotEmpty()) intersectionMatrix[0].size else 0} columns")
+            Log.d(
+                "BreadboardDetector",
+                "Intersection matrix size: ${intersectionMatrix.size} rows x ${if (intersectionMatrix.isNotEmpty()) intersectionMatrix[0].size else 0} columns"
+            )
 
             // Draw grid dimensions on warped image
             val textBgPts = MatOfPoint()
@@ -901,9 +938,11 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
             highlightedPoints.add(Pair(rowIndex, colIndex))
             Log.d("BreadboardDetector", "Added grid point to highlight: $rowIndex, $colIndex")
         } else {
-            Log.w("BreadboardDetector", "Invalid grid point: $rowIndex, $colIndex. " +
-                    "Grid size: ${currentIntersectionMatrix.size}x" +
-                    "${if (currentIntersectionMatrix.isNotEmpty()) currentIntersectionMatrix[0].size else 0}")
+            Log.w(
+                "BreadboardDetector", "Invalid grid point: $rowIndex, $colIndex. " +
+                        "Grid size: ${currentIntersectionMatrix.size}x" +
+                        "${if (currentIntersectionMatrix.isNotEmpty()) currentIntersectionMatrix[0].size else 0}"
+            )
         }
 
         return isValid
@@ -916,6 +955,7 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
         highlightedPoints.clear()
         Log.d("BreadboardDetector", "Cleared all highlighted grid points")
     }
+
     fun highlightMultipleGridPoints(
         points: List<Pair<Int, Int>>,
         colors: List<Scalar>? = null
@@ -958,14 +998,17 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
 
                 Log.d("BreadboardDetector", "Added grid point to highlight: $rowIndex, $colIndex")
             } else {
-                Log.w("BreadboardDetector", "Invalid grid point: $rowIndex, $colIndex. " +
-                        "Grid size: ${currentIntersectionMatrix.size}x" +
-                        "${if (currentIntersectionMatrix.isNotEmpty()) currentIntersectionMatrix[0].size else 0}")
+                Log.w(
+                    "BreadboardDetector", "Invalid grid point: $rowIndex, $colIndex. " +
+                            "Grid size: ${currentIntersectionMatrix.size}x" +
+                            "${if (currentIntersectionMatrix.isNotEmpty()) currentIntersectionMatrix[0].size else 0}"
+                )
             }
         }
 
         return validPoints
     }
+
     fun highlightGridPath(
         points: List<Pair<Int, Int>>,
         pathColor: Scalar = Scalar(0.0, 165.0, 255.0), // Orange
@@ -989,6 +1032,234 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
         return validPoints
     }
 
+    fun togglePinHighlighting() {
+        isHighlightingActive = !isHighlightingActive
+
+        // Reset indices when starting
+        if (isHighlightingActive) {
+            currentComponentIndex = 0
+            currentPinIndex = 0
+            lastUpdateTime = System.currentTimeMillis()
+
+            // Clear any existing highlights
+            clearHighlightedPoints()
+
+            Log.d("ARActivityOne", "Component highlighting activated")
+        } else {
+            Log.d("ARActivityOne", "Component highlighting deactivated")
+        }
+    }
+
+    /**
+     * Pause/resume pin highlighting
+     */
+    fun pauseResumeHighlighting() {
+        isComponentHighlightingPaused = !isComponentHighlightingPaused
+        Log.d(
+            "ARActivityOne",
+            "Component highlighting ${if (isComponentHighlightingPaused) "paused" else "resumed"}"
+        )
+    }
+
+    /**
+     * Jump to the next component in the sequence
+     */
+    fun jumpToNextComponent() {
+        if (placements.isEmpty()) return
+
+        clearHighlightedPoints()
+        currentComponentIndex = (currentComponentIndex + 1) % placements.size
+        currentPinIndex = 0
+        lastUpdateTime = System.currentTimeMillis()
+
+        Log.d("ARActivityOne", "Jumped to component: ${placements[currentComponentIndex].ref}")
+    }
+
+    /**
+     * Process component pin highlighting in sequence
+     * Call this from onCameraFrame
+     */
+    private fun processComponentHighlighting(frame: Mat) {
+        if (!isHighlightingActive || placements.isEmpty() || isComponentHighlightingPaused) {
+            return
+        }
+
+        val currentTimeMs = System.currentTimeMillis()
+
+        // Check if it's time to update the highlighted pin
+        if (currentTimeMs - lastUpdateTime >= PIN_HIGHLIGHT_DELAY_MS) {
+            // Clear previous highlights
+            clearHighlightedPoints()
+
+            // Get current component
+            val component = placements[currentComponentIndex]
+
+            // Check if we're within pin bounds
+            if (currentPinIndex < component.positions.size) {
+                // Get the pin to highlight
+                val (rowIndex, colIndex) = component.positions[currentPinIndex]
+
+                // Validate against breadboard boundaries
+                val isValid = validatePinPosition(rowIndex, colIndex)
+
+                if (isValid) {
+                    // Highlight this pin using the existing function
+                    highlightGridPoint(rowIndex, colIndex)
+
+                    // Display component info on screen
+                    val pinNumber = currentPinIndex + 1
+                    val text = "${component.ref} - Pin $pinNumber (${rowIndex}, ${colIndex})"
+                    displayComponentInfo(frame, text)
+
+                    Log.d(
+                        "ARActivityOne",
+                        "Highlighting ${component.ref} pin $pinNumber at (${rowIndex}, ${colIndex})"
+                    )
+                } else {
+                    Log.w("ARActivityOne", "Invalid pin location: (${rowIndex}, ${colIndex})")
+                }
+
+                // Move to next pin
+                currentPinIndex++
+
+            } else {
+                // Move to next component
+                currentComponentIndex = (currentComponentIndex + 1) % placements.size
+                currentPinIndex = 0
+
+                // Display component change message
+                val nextComponent = placements[currentComponentIndex]
+                displayComponentInfo(frame, "Next: ${nextComponent.ref}")
+
+                Log.d("ARActivityOne", "Moving to next component: ${nextComponent.ref}")
+            }
+
+            lastUpdateTime = currentTimeMs
+        }
+    }
+
+    /**
+     * Validate if a pin position is within breadboard boundaries
+     */
+    private fun validatePinPosition(rowIndex: Int, colIndex: Int): Boolean {
+        // Validate against current matrix boundaries
+        val isWithinMatrix = rowIndex >= 0 &&
+                colIndex >= 0 &&
+                currentIntersectionMatrix.isNotEmpty() &&
+                rowIndex < currentIntersectionMatrix.size &&
+                colIndex < currentIntersectionMatrix[0].size
+
+        // Additional checks for breadboard specific limitations
+        if (isWithinMatrix) {
+            // Check for power rails (optional - you may want to allow connections to power rails)
+            val isPowerRail = isPowerRailRow(rowIndex, currentIntersectionMatrix.size)
+            if (isPowerRail) {
+                Log.i(
+                    "ARActivityOne",
+                    "Note: Pin at ($rowIndex, $colIndex) is on a power/ground rail"
+                )
+            }
+        }
+
+        return isWithinMatrix
+    }
+
+    /**
+     * Determine if a row is a power/ground rail
+     */
+    private fun isPowerRailRow(rowIndex: Int, totalRows: Int): Boolean {
+        // Typically, the top two and bottom two rows are power/ground rails
+        return rowIndex <= 1 || rowIndex >= totalRows - 2
+    }
+
+    /**
+     * Display component information overlay
+     */
+    private fun displayComponentInfo(frame: Mat, text: String) {
+        try {
+            // Create background for text
+            val textSize = Imgproc.getTextSize(
+                text,
+                Imgproc.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                1,
+                null
+            )
+
+            Imgproc.rectangle(
+                frame,
+                Point(10.0, frame.height() - 40.0),
+                Point(10.0 + textSize.width + 20, frame.height() - 10.0),
+                Scalar(0.0, 0.0, 0.0, 200.0), // Semi-transparent black
+                -1
+            )
+
+            // Draw text
+            Imgproc.putText(
+                frame,
+                text,
+                Point(20.0, frame.height() - 20.0),
+                Imgproc.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                Scalar(255.0, 255.0, 255.0), // White
+                1
+            )
+        } catch (e: Exception) {
+            Log.e("ARActivityOne", "Error displaying component info: ${e.message}")
+        }
+    }
+
+    /**
+     * Display additional component statistics
+     */
+    private fun displayComponentStats(frame: Mat) {
+        try {
+            if (placements.isEmpty()) return
+
+            val totalComponents = placements.size
+            val currentComponent = currentComponentIndex + 1
+            val progress = "$currentComponent/$totalComponents"
+
+            val component = placements[currentComponentIndex]
+            val totalPins = component.positions.size
+            val currentPin = if (currentPinIndex < totalPins) currentPinIndex + 1 else totalPins
+            val pinProgress = "$currentPin/$totalPins"
+
+            // Create background for stats
+            Imgproc.rectangle(
+                frame,
+                Point(frame.width() - 180.0, frame.height() - 75.0),
+                Point(frame.width() - 10.0, frame.height() - 10.0),
+                Scalar(0.0, 0.0, 0.0, 200.0), // Semi-transparent black
+                -1
+            )
+
+            // Draw stats
+            Imgproc.putText(
+                frame,
+                "Component: $progress",
+                Point(frame.width() - 170.0, frame.height() - 50.0),
+                Imgproc.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                Scalar(255.0, 255.0, 255.0), // White
+                1
+            )
+
+            Imgproc.putText(
+                frame,
+                "Pin: $pinProgress",
+                Point(frame.width() - 170.0, frame.height() - 25.0),
+                Imgproc.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                Scalar(255.0, 255.0, 255.0), // White
+                1
+            )
+        } catch (e: Exception) {
+            Log.e("ARActivityOne", "Error displaying component stats: ${e.message}")
+        }
+    }
+
+    // Modified onCameraFrame to include component highlighting
     override fun onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame): Mat {
         try {
             val rgba = inputFrame.rgba()
@@ -1017,7 +1288,13 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
             // 4. Find contours on mask
             val contours = mutableListOf<MatOfPoint>()
             val hierarchy = Mat()
-            Imgproc.findContours(mask, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE)
+            Imgproc.findContours(
+                mask,
+                contours,
+                hierarchy,
+                Imgproc.RETR_EXTERNAL,
+                Imgproc.CHAIN_APPROX_SIMPLE
+            )
 
             // 5. Find largest contour by area (assumed breadboard)
             var maxContour: MatOfPoint? = null
@@ -1070,7 +1347,13 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
                 if (points.size == 4) {
                     // Draw green polygon lines between 4 corners
                     for (i in points.indices) {
-                        Imgproc.line(rgba, points[i], points[(i + 1) % 4], Scalar(0.0, 255.0, 0.0), 3)
+                        Imgproc.line(
+                            rgba,
+                            points[i],
+                            points[(i + 1) % 4],
+                            Scalar(0.0, 255.0, 0.0),
+                            3
+                        )
                     }
 
                     // Add text label for breadboard
@@ -1087,14 +1370,19 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
                     // Apply perspective transform to get normalized top-down view
                     warpedBreadboard?.release()
                     warpedBreadboard = applyPerspectiveTransform(rgba, points)
-
                 } else {
                     // Fallback: draw rotated rectangle in red if not 4 points
                     val rotatedRect = Imgproc.minAreaRect(contour2f)
                     val boxPoints = Array(4) { Point() }
                     rotatedRect.points(boxPoints)
                     for (i in boxPoints.indices) {
-                        Imgproc.line(rgba, boxPoints[i], boxPoints[(i + 1) % 4], Scalar(0.0, 0.0, 255.0), 3)
+                        Imgproc.line(
+                            rgba,
+                            boxPoints[i],
+                            boxPoints[(i + 1) % 4],
+                            Scalar(0.0, 0.0, 255.0),
+                            3
+                        )
                     }
                 }
 
@@ -1108,7 +1396,7 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
                 try {
                     // Safety check for warped image
                     if (warped.empty()) {
-                        Log.w("BreadboardDetector", "Warped breadboard is empty")
+                        Log.w("ARActivityOne", "Warped breadboard is empty")
                         displayDebugInfo(rgba, detectedCorners, 0, 0)
                         return rgba
                     }
@@ -1128,7 +1416,16 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
                         val warpedForDisplay = warped.clone()
 
                         // Create and display the intersection matrix, store the result
-                        currentIntersectionMatrix = displayGridMatrix(warpedForDisplay, horizontalLines, verticalLines)
+                        currentIntersectionMatrix =
+                            displayGridMatrix(warpedForDisplay, horizontalLines, verticalLines)
+
+                        // NEW: Process component pin highlighting
+                        processComponentHighlighting(rgba)
+
+                        // Display component stats (progress tracking)
+                        if (isHighlightingActive && !isComponentHighlightingPaused && placements.isNotEmpty()) {
+                            displayComponentStats(rgba)
+                        }
 
                         // Apply highlights for all requested grid points
                         highlightedPoints.forEach { (row, col) ->
@@ -1146,19 +1443,30 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
                         try {
                             // Resize for display
                             val warpedDisplay = warpedForDisplay.clone()
-                            Imgproc.resize(warpedDisplay, warpedDisplay, Size(rgba.width() / 4.0, rgba.height() / 4.0))
+                            Imgproc.resize(
+                                warpedDisplay,
+                                warpedDisplay,
+                                Size(rgba.width() / 4.0, rgba.height() / 4.0)
+                            )
 
                             // Draw the warped display in the corner of the main frame
                             if (warpedDisplay.width() > 0 && warpedDisplay.height() > 0 &&
-                                warpedDisplay.width() <= rgba.width() && warpedDisplay.height() <= rgba.height()) {
-                                val roi = Mat(rgba, Rect(0, 0, warpedDisplay.width(), warpedDisplay.height()))
+                                warpedDisplay.width() <= rgba.width() && warpedDisplay.height() <= rgba.height()
+                            ) {
+                                val roi = Mat(
+                                    rgba,
+                                    Rect(0, 0, warpedDisplay.width(), warpedDisplay.height())
+                                )
                                 warpedDisplay.copyTo(roi)
 
                                 // Draw border around the preview
                                 Imgproc.rectangle(
                                     rgba,
                                     Point(0.0, 0.0),
-                                    Point(warpedDisplay.width().toDouble(), warpedDisplay.height().toDouble()),
+                                    Point(
+                                        warpedDisplay.width().toDouble(),
+                                        warpedDisplay.height().toDouble()
+                                    ),
                                     Scalar(255.0, 255.0, 255.0),
                                     2
                                 )
@@ -1166,61 +1474,47 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
 
                             warpedDisplay.release()
                         } catch (e: Exception) {
-                            Log.e("BreadboardDetector", "Error displaying warped image: ${e.message}")
+                            Log.e("ARActivityOne", "Error displaying warped image: ${e.message}")
                         }
 
                         warpedForDisplay.release()
                     } else {
                         // Reset intersection matrix if no grid lines detected
                         currentIntersectionMatrix = Array(0) { Array(0) { null } }
+                        Log.w("ARActivityOne", "No grid lines detected")
 
-                        Log.w("BreadboardDetector", "No grid lines detected")
                         // Display warped image without grid
                         try {
                             val warpedDisplay = warped.clone()
-                            Imgproc.resize(warpedDisplay, warpedDisplay, Size(rgba.width() / 4.0, rgba.height() / 4.0))
-                            val roi = Mat(rgba, Rect(0, 0, warpedDisplay.width(), warpedDisplay.height()))
+                            Imgproc.resize(
+                                warpedDisplay,
+                                warpedDisplay,
+                                Size(rgba.width() / 4.0, rgba.height() / 4.0)
+                            )
+                            val roi =
+                                Mat(rgba, Rect(0, 0, warpedDisplay.width(), warpedDisplay.height()))
                             warpedDisplay.copyTo(roi)
                             warpedDisplay.release()
                         } catch (e: Exception) {
-                            Log.e("BreadboardDetector", "Error displaying raw warped image: ${e.message}")
+                            Log.e(
+                                "ARActivityOne",
+                                "Error displaying raw warped image: ${e.message}"
+                            )
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e("BreadboardDetector", "Error processing warped breadboard: ${e.message}")
+                    Log.e("ARActivityOne", "Error processing warped breadboard: ${e.message}")
                     e.printStackTrace()
                 }
             }
 
-            // Check if there's a valid grid
-            if (currentIntersectionMatrix.isNotEmpty() && currentIntersectionMatrix[0].isNotEmpty()) {
-                // Get the dimensions of the grid
-                val lastRowIndex = currentIntersectionMatrix.size - 1
-                val lastColIndex = currentIntersectionMatrix[0].size - 1
-
-                // Create a list with first and last point
-                val pointsToHighlight = listOf(
-                    Pair(1, 1),                      // First point (0,0)
-                    Pair(lastRowIndex, lastColIndex) // Last point (max row, max col)
-                )
-
-                // Define colors for the points (first=green, last=red)
-                val colors = listOf(
-                    Scalar(0.0, 255.0, 0.0),       // Green for first point
-                    Scalar(0.0, 0.0, 255.0)        // Red for last point
-                )
-
-                // Use existing function to highlight the points
-                highlightMultipleGridPoints(pointsToHighlight, colors)
-
-                Log.d("BreadboardDetector", "Highlighted first point (0,0) and last point ($lastRowIndex,$lastColIndex)")
-
-                // INTEGRATION: Draw the highlighted points in the original view
-                drawHighlightedPointsInOriginalView(rgba)
-            }
-
             // Display debug info in top corner
             displayDebugInfo(rgba, detectedCorners, rowCount, colCount)
+
+            // If highlighting is active, show controls info
+            if (isHighlightingActive) {
+                displayControlsInfo(rgba)
+            }
 
             // Clean up resources
             hsv.release()
@@ -1229,18 +1523,132 @@ class ARActivityOne : ComponentActivity(), CameraBridgeViewBase.CvCameraViewList
             hierarchy.release()
             contours.forEach { it.release() }
 
-            // Don't clear highlighted points here, to keep them visible
-            // This lets the user see the points until they are deliberately cleared elsewhere
-            // clearHighlightedPoints()
-
             return rgba
         } catch (e: Exception) {
-            Log.e("BreadboardDetector", "Critical error in onCameraFrame: ${e.message}")
+            Log.e("ARActivityOne", "Critical error in onCameraFrame: ${e.message}")
             e.printStackTrace()
             // Return an empty frame or the original frame in case of error
             return inputFrame.rgba()
         }
     }
+
+    /**
+     * Display controls information for the user
+     */
+    private fun displayControlsInfo(frame: Mat) {
+        try {
+            val text = if (isComponentHighlightingPaused)
+                "PAUSED | Tap to Resume"
+            else
+                "Highlighting Active | Tap to Pause"
+
+            // Create background for text at top center
+            val textSize = Imgproc.getTextSize(
+                text,
+                Imgproc.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                1,
+                null
+            )
+
+            val centerX = frame.width() / 2.0
+            val startX = centerX - (textSize.width / 2.0) - 10
+
+            Imgproc.rectangle(
+                frame,
+                Point(startX, 10.0),
+                Point(startX + textSize.width + 20, 40.0),
+                Scalar(0.0, 0.0, 0.0, 200.0), // Semi-transparent black
+                -1
+            )
+
+            // Draw text
+            Imgproc.putText(
+                frame,
+                text,
+                Point(startX + 10, 30.0),
+                Imgproc.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                Scalar(255.0, 255.0, 255.0), // White
+                1
+            )
+        } catch (e: Exception) {
+            Log.e("ARActivityOne", "Error displaying controls info: ${e.message}")
+        }
+    }
+
+    /**
+     * To be added in your onCreate or initialization method:
+     * Set up UI listeners for user interaction with the highlighting system
+     */
+    private fun setupHighlightingControls() {
+        // Start highlighting automatically when activity starts
+        isHighlightingActive = true
+        lastUpdateTime = System.currentTimeMillis()
+
+        // Set up touch listeners to control highlighting
+        cameraView.setOnClickListener {
+            if (isHighlightingActive) {
+                // Toggle pause/resume state
+                pauseResumeHighlighting()
+            } else {
+                // If not active, start highlighting
+                togglePinHighlighting()
+            }
+        }
+
+        // Long press to advance to next component
+        cameraView.setOnLongClickListener {
+            if (isHighlightingActive) {
+                jumpToNextComponent()
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    /**
+     * Check for duplicate pin positions across components
+     * This is useful for debugging your component placements
+     * Call this during initialization
+     */
+    private fun checkForDuplicatePins() {
+        if (placements.isEmpty()) return
+
+        val allPinLocations = mutableMapOf<GridPoint, MutableList<String>>()
+        var duplicatesFound = 0
+
+        // Collect all pin locations
+        placements.forEach { component ->
+            component.positions.forEach { position ->
+                val components = allPinLocations.getOrPut(position) { mutableListOf() }
+                components.add(component.ref)
+
+                if (components.size > 1) {
+                    duplicatesFound++
+                }
+            }
+        }
+
+        // Report duplicates
+        if (duplicatesFound > 0) {
+            Log.w("ARActivityOne", "Found $duplicatesFound duplicate pin positions:")
+
+            allPinLocations.filter { it.value.size > 1 }.forEach { (position, components) ->
+                Log.w(
+                    "ARActivityOne",
+                    "Position $position is used by: ${components.joinToString(", ")}"
+                )
+            }
+        } else {
+            Log.d(
+                "ARActivityOne",
+                "No duplicate pin positions found among ${placements.size} components"
+            )
+        }
+    }
+
 
     /**
      * Displays debug information on the frame
