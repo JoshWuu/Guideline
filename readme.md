@@ -1,4 +1,8 @@
-🧠 Inspiration
+
+![GuideLineLogoTransparent](https://github.com/user-attachments/assets/d922fa10-e793-4f2e-bfef-2549a86a8704)
+## GuideLine is an augmented reality tool that visually guides users through the breadboarding process.
+
+  🧠 Inspiration
 As students who run a robotics club, we’ve seen the same thing happen over and over again:
 New members join, excited to learn electronics — but the moment breadboards and schematics come out, they freeze.
 The diagrams are confusing.
@@ -14,6 +18,7 @@ Point your phone at your breadboard
 See glowing highlights showing exactly where each wire and component goes
 Follow step-by-step instructions until your circuit is complete
 It’s like a GPS for electronics.
+![image-removebg-preview](https://github.com/user-attachments/assets/45dddb5f-9e82-491f-b727-7fa1f43747c1)
 
 
 ⚙️ How It Works
@@ -22,7 +27,9 @@ Schematic Parser extracts wiring instructions and component locations
 Real-Time AR Overlay lights up individual holes for each connection
 Step-by-Step Mode guides the user through each placement with optional haptic feedback![](https://cdn.discordapp.com/attachments/1369872014587859065/1373378221113868388/Screenshot_2025-05-17_151428.png?ex=682a31a4&is=6828e024&hm=4e48ab8fe4e252db0a2c393e2fd5b73390864b3778fd917a6e24e28fcc30b301&=)
 
+![Screenshot 2025-05-17 202426](https://github.com/user-attachments/assets/d25b9d5b-7a9b-4157-b8a4-93764cc8e27a)
 
+![Screenshot 2025-05-17 144321](https://github.com/user-attachments/assets/0524f210-8a32-4bb0-8391-114fb58c3dca)
 
 🏆 Accomplishments
 Functional AR interface with real-time wiring overlays
