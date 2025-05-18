@@ -42,9 +42,11 @@ export default function Home() {
         <div className="flex flex-row">
           <Image src="/logo.png" width={50} height={50} alt="logo"></Image>
           <h1 className="text-5xl text-white">Guideline</h1>
+
+          <h1><a href="https://dorahacks.io/buidl/26350/">buidl</a></h1>
         </div>
         <div className="w-full flex items-center justify-center">
-          <div className="h-full flex mt-[20vh] w-[80%] flex-col text-violet-200 backdrop-blur-sm p-10 rounded-4xl items-center">
+          <div className="h-full flex mt-[20vh] w-[80%] flex-col text-violet-200 backdrop-blur-sm p-10 py-15 rounded-4xl items-center">
             <h1 className="text-5xl tracking-wider text-center">
               AR-powered real-time circuit assembly
             </h1>
